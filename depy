@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+
+function success {
+    echo -e "\033[0;32m$1\033[0m"
+}
+
+function error {
+    echo -e "\033[0;31m$1\033[0m"
+}
+
+function announce {
+    local width=${#1}
+    local padding=5
+    local total=$(($padding+$width+$padding))
+    printf "\033[$2m%-${total}.${total}s\033[0m\n"
+    printf "\033[$2m%-${padding}.${padding}s"; echo -n $1; printf "\033[$2m%-${padding}.${padding}s\033[0m\n";
+    printf "\033[$2m%-${total}.${total}s\033[0m\n"
+}
+
+function successBig {
+    announce $1 '7;32'
+}
+function errorBig {
+    announce $1 '0;30;41'
+}
+
+#
+# Validate Bash version
+#
+if (( ${BASH_VERSION%%.*} < 4 )); then
+    error "Bash 4 or higher required!"
+    exit 1
+fi
+
+cwd=`pwd`
+failed=0
+
+#
+# Load configuration
+#
+if [ -f ./.depy/config ]; then
+    declare -A servers
+    . ./.depy/config
+else
+    error "Depy configuration not found!"
+    error "To initialize Depy run: depy init"
+    exit 1
+fi
+
+#
+# Run each hook in a subprocess
+# Prefix the hook with the file name
+# Return hook exit status
+#
+function runHook {
+    (. "${cwd}/.depy/hooks/$1" | sed "s/^/[$1] /"; return ${PIPESTATUS[0]})
+}
+
+#
+# Run pre hooks
+#
+for hook in "${preHooks[@]}"; do
+    runHook ${hook}
+    if [ $? -ne 0 ]; then
+        error "[Error] ${hook}"
+        failed=1
+        break
+    fi
+done
+
+#
+# Remote server work
+#
+echo "DO ACTION"
+echo "${servers["production.host"]}"
+
+#
+# Run post hooks
+# Skip if any of the pre hooks failed
+#
+if [ ${failed} -eq 0 ]; then
+    for hook in "${postHooks[@]}"; do
+        runHook ${hook}
+        if [ $? -ne 0 ]; then
+            echo 'failing'
+            failed=1
+        fi
+    done
+fi
+
+#
+# Announce result of the operation
+#
+if [ ${failed} -eq 0 ] && [ $? -eq 0 ]; then
+    successBig "Success"
+else
+    errorBig "Failure"
+fi
