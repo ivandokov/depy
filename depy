@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+target=$1
+cmd=$2
+
 function success {
     echo -e "\033[0;32m$1\033[0m"
 }
@@ -32,8 +35,46 @@ if (( ${BASH_VERSION%%.*} < 4 )); then
     exit 1
 fi
 
-cwd=`pwd`
-failed=0
+#
+# Initialize Depy in current directory if first argument is init
+#
+if [ "$1" == 'init' ]; then
+    if [ -d ./.depy ]; then
+        error "Depy is already initialized in this directory"
+        exit 1
+    fi
+
+    mkdir -p ./.depy/hooks
+    cat > ./.depy/hooks/pre-example <<EOL
+#!/usr/bin/env bash
+
+echo "Pre hook example"
+EOL
+    cat > ./.depy/hooks/post-example <<EOL
+#!/usr/bin/env bash
+
+echo "Post hook example"
+EOL
+    cat > ./.depy/config <<EOL
+servers=(
+    [production.host]=192.168.20.20
+    [production.port]=22
+    [production.user]=ubuntu
+    [production.identity]=~/.ssh/id_rsa
+    [production.cwd]=/home/ubuntu
+)
+
+preHooks=(
+    pre-example
+)
+
+postHooks=(
+    post-example
+)
+EOL
+    success "Done"
+    exit 0
+fi
 
 #
 # Load configuration
@@ -53,46 +94,76 @@ fi
 # Return hook exit status
 #
 function runHook {
-    (. "${cwd}/.depy/hooks/$1" | sed "s/^/[$1] /"; return ${PIPESTATUS[0]})
+    (. "./.depy/hooks/$1" | sed "s/^/[$1] /"; return ${PIPESTATUS[0]})
 }
 
-#
-# Run pre hooks
-#
-for hook in "${preHooks[@]}"; do
-    runHook ${hook}
-    if [ $? -ne 0 ]; then
-        error "[Error] ${hook}"
-        failed=1
-        break
+function remoteCmd {
+    local cmd=$1
+
+    if [ ! -z "$2" ]; then
+        cmd="sudo $cmd"
     fi
-done
 
-#
-# Remote server work
-#
-echo "DO ACTION"
-echo "${servers["production.host"]}"
+    if [ -z "${servers["${target}.host"]}" ]; then
+        error "Missing configuration for ${target}"
+        exit 1
+    fi
 
-#
-# Run post hooks
-# Skip if any of the pre hooks failed
-#
-if [ ${failed} -eq 0 ]; then
-    for hook in "${postHooks[@]}"; do
-        runHook ${hook}
-        if [ $? -ne 0 ]; then
-            echo 'failing'
-            failed=1
+    local host=${servers["${target}.host"]}
+    local post=${servers["${target}.port"]}
+    local user=${servers["${target}.user"]}
+    local cwd=${servers["${target}.cwd"]}
+
+    ssh ${user}@${host} "cd ${cwd}; $cmd"
+}
+
+case $cmd in
+    "setup")
+        remoteCmd "ls -l"
+    ;;
+    "deploy")
+        failed=0
+
+        #
+        # Run pre hooks
+        #
+        for hook in "${preHooks[@]}"; do
+            runHook ${hook}
+            if [ $? -ne 0 ]; then
+                error "[Error] ${hook}"
+                failed=1
+                break
+            fi
+        done
+
+        #
+        # Remote server work
+        #
+        echo "DO ACTION"
+        echo "${servers["production.host"]}"
+
+        #
+        # Run post hooks
+        # Skip if any of the pre hooks failed
+        #
+        if [ ${failed} -eq 0 ]; then
+            for hook in "${postHooks[@]}"; do
+                runHook ${hook}
+                if [ $? -ne 0 ]; then
+                    echo 'failing'
+                    failed=1
+                fi
+            done
         fi
-    done
-fi
 
-#
-# Announce result of the operation
-#
-if [ ${failed} -eq 0 ] && [ $? -eq 0 ]; then
-    successBig "Success"
-else
-    errorBig "Failure"
-fi
+        #
+        # Announce result of the operation
+        #
+        if [ ${failed} -eq 0 ] && [ $? -eq 0 ]; then
+            successBig "Success"
+        else
+            errorBig "Failure"
+        fi
+        ;;
+    *) error "Invalid option";;
+esac
