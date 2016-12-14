@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-target=$1
-cmd=$2
+cmd=$1
+target=$2
 
 function success {
     echo -e "\033[0;32m$1\033[0m"
@@ -38,7 +38,7 @@ fi
 #
 # Initialize Depy in current directory if first argument is init
 #
-if [ "$1" == 'init' ]; then
+if [ "$cmd" == 'init' ]; then
     if [ -d ./.depy ]; then
         error "Depy is already initialized in this directory"
         exit 1
