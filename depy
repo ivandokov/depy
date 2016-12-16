@@ -108,11 +108,12 @@ fi
 # Return hook exit status
 #
 function runHook {
-    (. ".depy/hooks/$1" | sed "s/^/[$1] /"; return ${PIPESTATUS[0]})
+    (. ".depy/hooks/$1" | sed "s/^/[local][$1] /"; return ${PIPESTATUS[0]})
 }
 
 function remoteCmd {
     local cmd=$1
+    local release=$2
 
     if [ -z "${servers["${target}.host"]}" ]; then
         error "Missing configuration for ${target}"
@@ -125,16 +126,18 @@ function remoteCmd {
     local cwd=${servers["${target}.cwd"]}
 
     if [ -f ".depy/hooks/$cmd" ]; then
-        (ssh ${user}@${host} 'set -o pipefail; false | true' "cd ${cwd}; bash -s" < .depy/hooks/${cmd} | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
+        (ssh ${user}@${host} "bash -s" < ".depy/hooks/${cmd}" "${cwd}/releases/${release}" | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
     else
-        (ssh ${user}@${host} "cd ${cwd}; $cmd" | sed "s/^/[${target}] /"; return
-        ${PIPESTATUS[0]})
+        (ssh ${user}@${host} "cd ${cwd}; $cmd" | sed "s/^/[${target}] /"; return ${PIPESTATUS[0]})
     fi
 }
 
 case ${cmd} in
     "setup")
-        remoteCmd "ls -l"
+        remoteCmd "mkdir releases"
+        remoteCmd "mkdir shared"
+        remoteCmd "ln -s /dev/null current"
+        success "Done"
     ;;
     "deploy")
         failed=0
@@ -154,28 +157,39 @@ case ${cmd} in
         #
         # Remote server work
         #
-        echo "[${target}] Deploying..."
+        echo "[${target}] Transferring files"
+
+        release=$(date +"%Y%m%d%H%M%S")
+        cwd=${servers["${target}.cwd"]}
+        server_dns=${servers["${target}.user"]}@${servers["${target}.host"]}
+        server_release_dir=${servers["${target}.cwd"]}/releases/${release}
+
         rsync --archive --recursive ${ignores[@]/#/--exclude=} --exclude=.depy \
                 ./ -e "ssh -p ${servers["${target}.port"]}" \
-                ${servers["${target}.user"]}@${servers["${target}.host"]}:${servers["${target}.cwd"]}/tmp
+                ${server_dns}:${server_release_dir}
 
         #
         # Run remote hooks
         #
         for hook in "${remoteHooks[@]}"; do
-            remoteCmd ${hook}
+            remoteCmd ${hook} ${release}
             if [ $? -ne 0 ]; then
-                error "[${target}][${hook}] Error"
+                error "[${target}][${hook}] Finished with exit code different than 0"
                 failed=1
                 break
             fi
         done
 
         #
-        # Run post hooks
         # Skip if any of the pre or remote hooks failed
         #
         if [ ${failed} -eq 0 ]; then
+            echo "[${target}] Linking latest release as current"
+            remoteCmd "rm current; ln -s releases/${release} current"
+
+            #
+            # Run post hooks
+            #
             for hook in "${postHooks[@]}"; do
                 runHook ${hook}
                 if [ $? -ne 0 ]; then
