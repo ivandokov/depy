@@ -126,9 +126,9 @@ function remoteCmd {
     local cwd=${servers["${target}.cwd"]}
 
     if [ -f ".depy/hooks/$cmd" ]; then
-        (ssh ${user}@${host} "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
+        (ssh ${user}@${host} -i "${servers["${target}.identity"]}" "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
     else
-        (ssh ${user}@${host} "cd ${cwd}; $cmd" | sed "s/^/[${target}] /"; return ${PIPESTATUS[0]})
+        (ssh ${user}@${host} -i "${servers["${target}.identity"]}" "cd ${cwd}; $cmd" | sed "s/^/[${target}] /"; return ${PIPESTATUS[0]})
     fi
 }
 
@@ -165,7 +165,7 @@ case ${cmd} in
         server_release_dir=${servers["${target}.cwd"]}/releases/${release}
 
         rsync --archive --recursive ${ignores[@]/#/--exclude=} --exclude=.depy \
-                ./ -e "ssh -p ${servers["${target}.port"]}" \
+                ./ -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" \
                 ${server_dns}:${server_release_dir}
 
         #
