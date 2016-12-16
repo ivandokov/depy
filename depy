@@ -159,7 +159,7 @@ case ${cmd} in
         #
         echo "[${target}] Transferring files"
 
-        release=$(date +"%Y%m%d%H%M%S")
+        release=$(date -u +"%Y%m%d%H%M%S")
         cwd=${servers["${target}.cwd"]}
         server_dns=${servers["${target}.user"]}@${servers["${target}.host"]}
         server_release_dir=${servers["${target}.cwd"]}/releases/${release}
