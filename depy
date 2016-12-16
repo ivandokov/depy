@@ -27,6 +27,15 @@ function errorBig {
     announce $1 '0;30;41'
 }
 
+if ! which rsync >/dev/null; then
+    error "Cannot find rsync"
+    exit 1
+fi
+if ! which ssh >/dev/null; then
+    error "Cannot find ssh"
+    exit 1
+fi
+
 #
 # Validate Bash version
 #
