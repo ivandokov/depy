@@ -111,6 +111,10 @@ function runHook {
     (. ".depy/hooks/$1" | sed "s/^/[local][$1] /"; return ${PIPESTATUS[0]})
 }
 
+function remoteCmdRaw {
+    ssh ${servers["${target}.user"]}@${servers["${target}.host"]} -i "${servers["${target}.identity"]}" -p ${servers["${target}.port"]} $@
+}
+
 function remoteCmd {
     local cmd=$1
     local server_release_dir=$2
@@ -120,23 +124,24 @@ function remoteCmd {
         exit 1
     fi
 
-    local host=${servers["${target}.host"]}
-    local post=${servers["${target}.port"]}
-    local user=${servers["${target}.user"]}
-    local cwd=${servers["${target}.cwd"]}
-
     if [ -f ".depy/hooks/$cmd" ]; then
-        (ssh ${user}@${host} -i "${servers["${target}.identity"]}" "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
+        (remoteCmdRaw "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
     else
-        (ssh ${user}@${host} -i "${servers["${target}.identity"]}" "cd ${cwd}; $cmd" | sed "s/^/[${target}] /"; return ${PIPESTATUS[0]})
+        (remoteCmdRaw "cd ${servers["${target}.cwd"]}; $cmd" | sed "s/^/[${target}] /"; return ${PIPESTATUS[0]})
     fi
 }
 
 case ${cmd} in
     "setup")
-        remoteCmd "mkdir releases"
-        remoteCmd "mkdir shared"
-        remoteCmd "ln -s /dev/null current"
+        if [ -z $(remoteCmdRaw "[ -d ${servers["${target}.cwd"]}/releases ] && echo 1") ]; then
+            remoteCmd "mkdir releases"
+        fi
+        if [ -z $(remoteCmdRaw "[ -d ${servers["${target}.cwd"]}/shared ] && echo 1") ]; then
+            remoteCmd "mkdir shared"
+        fi
+        if [ -z $(remoteCmdRaw "[ -L ${servers["${target}.cwd"]}/current ] && echo 1") ]; then
+            remoteCmd "ln -s /dev/null current"
+        fi
         success "Done"
     ;;
     "deploy")
