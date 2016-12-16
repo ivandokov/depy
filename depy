@@ -113,7 +113,7 @@ function runHook {
 
 function remoteCmd {
     local cmd=$1
-    local release=$2
+    local server_release_dir=$2
 
     if [ -z "${servers["${target}.host"]}" ]; then
         error "Missing configuration for ${target}"
@@ -126,7 +126,7 @@ function remoteCmd {
     local cwd=${servers["${target}.cwd"]}
 
     if [ -f ".depy/hooks/$cmd" ]; then
-        (ssh ${user}@${host} "bash -s" < ".depy/hooks/${cmd}" "${cwd}/releases/${release}" | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
+        (ssh ${user}@${host} "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
     else
         (ssh ${user}@${host} "cd ${cwd}; $cmd" | sed "s/^/[${target}] /"; return ${PIPESTATUS[0]})
     fi
@@ -172,7 +172,7 @@ case ${cmd} in
         # Run remote hooks
         #
         for hook in "${remoteHooks[@]}"; do
-            remoteCmd ${hook} ${release}
+            remoteCmd ${hook} ${server_release_dir}
             if [ $? -ne 0 ]; then
                 error "[${target}][${hook}] Finished with exit code different than 0"
                 failed=1
@@ -184,7 +184,7 @@ case ${cmd} in
         # Skip if any of the pre or remote hooks failed
         #
         if [ ${failed} -eq 0 ]; then
-            echo "[${target}] Linking latest release as current"
+            echo "[${target}] Linking release as current"
             remoteCmd "rm current; ln -s releases/${release} current"
 
             #
