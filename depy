@@ -112,17 +112,17 @@ function runHook {
 }
 
 function remoteCmdRaw {
+    if [ -z "${servers["${target}.host"]}" ]; then
+        error "Missing configuration for server ${target}"
+        exit 1
+    fi
+
     ssh ${servers["${target}.user"]}@${servers["${target}.host"]} -i "${servers["${target}.identity"]}" -p ${servers["${target}.port"]} $@
 }
 
 function remoteCmd {
     local cmd=$1
     local server_release_dir=$2
-
-    if [ -z "${servers["${target}.host"]}" ]; then
-        error "Missing configuration for ${target}"
-        exit 1
-    fi
 
     if [ -f ".depy/hooks/$cmd" ]; then
         (remoteCmdRaw "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
@@ -133,17 +133,18 @@ function remoteCmd {
 
 case ${cmd} in
     "setup")
-        if [ -z $(remoteCmdRaw "[ -d ${servers["${target}.cwd"]}/releases ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/releases\" ] && echo 1") ]; then
             remoteCmd "mkdir releases"
         fi
-        if [ -z $(remoteCmdRaw "[ -d ${servers["${target}.cwd"]}/shared ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/shared\" ] && echo 1") ]; then
             remoteCmd "mkdir shared"
         fi
-        if [ -z $(remoteCmdRaw "[ -L ${servers["${target}.cwd"]}/current ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -L \"${servers["${target}.cwd"]}/current\" ] && echo 1") ]; then
             remoteCmd "ln -s /dev/null current"
         fi
         success "Done"
     ;;
+
     "deploy")
         failed=0
 
@@ -173,6 +174,17 @@ case ${cmd} in
             rsync --archive --recursive ${ignores[@]/#/--exclude=} --exclude=.depy \
                     ./ -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" \
                     ${server_dns}:${server_release_dir}
+
+            #
+            # Setup shared files and folders
+            #
+            for dir in "${shared[@]}"; do
+                if [ -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/shared/${dir}\" ] && echo 1") ]; then
+                    remoteCmd "mv \"releases/${release}/${dir}\" \"shared/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
+                else
+                    remoteCmd "rm -rf \"releases/${release}/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
+                fi
+            done
 
             #
             # Run remote hooks
@@ -216,5 +228,6 @@ case ${cmd} in
         fi
         echo
         ;;
+
     *) error "Invalid option";;
 esac
