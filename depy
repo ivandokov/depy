@@ -157,28 +157,30 @@ case ${cmd} in
         #
         # Remote server work
         #
-        echo "[${target}] Transferring files"
+        if [ ${failed} -eq 0 ]; then
+            echo "[${target}] Transferring files"
 
-        release=$(date -u +"%Y%m%d%H%M%S")
-        cwd=${servers["${target}.cwd"]}
-        server_dns=${servers["${target}.user"]}@${servers["${target}.host"]}
-        server_release_dir=${servers["${target}.cwd"]}/releases/${release}
+            release=$(date -u +"%Y%m%d%H%M%S")
+            cwd=${servers["${target}.cwd"]}
+            server_dns=${servers["${target}.user"]}@${servers["${target}.host"]}
+            server_release_dir=${servers["${target}.cwd"]}/releases/${release}
 
-        rsync --archive --recursive ${ignores[@]/#/--exclude=} --exclude=.depy \
-                ./ -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" \
-                ${server_dns}:${server_release_dir}
+            rsync --archive --recursive ${ignores[@]/#/--exclude=} --exclude=.depy \
+                    ./ -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" \
+                    ${server_dns}:${server_release_dir}
 
-        #
-        # Run remote hooks
-        #
-        for hook in "${remoteHooks[@]}"; do
-            remoteCmd ${hook} ${server_release_dir}
-            if [ $? -ne 0 ]; then
-                error "[${target}][${hook}] Finished with exit code different than 0"
-                failed=1
-                break
-            fi
-        done
+            #
+            # Run remote hooks
+            #
+            for hook in "${remoteHooks[@]}"; do
+                remoteCmd ${hook} ${server_release_dir}
+                if [ $? -ne 0 ]; then
+                    error "[${target}][${hook}] Finished with exit code different than 0"
+                    failed=1
+                    break
+                fi
+            done
+        fi
 
         #
         # Skip if any of the pre or remote hooks failed
@@ -201,11 +203,13 @@ case ${cmd} in
         #
         # Announce result of the operation
         #
+        echo
         if [ ${failed} -eq 0 ] && [ $? -eq 0 ]; then
             successBig "Success"
         else
             errorBig "Failure"
         fi
+        echo
         ;;
     *) error "Invalid option";;
 esac
