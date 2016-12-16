@@ -94,6 +94,10 @@ ignores=(
     .git
     .gitignore
 )
+
+shared=(
+    logs
+)
 EOL
     success "Done"
     exit 0
@@ -188,10 +192,12 @@ case ${cmd} in
             # Setup shared files and folders
             #
             for dir in "${shared[@]}"; do
-                if [ -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/shared/${dir}\" ] && echo 1") ]; then
-                    remoteCmd "mv \"releases/${release}/${dir}\" \"shared/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
-                else
-                    remoteCmd "rm -rf \"releases/${release}/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
+                if [ -d "${dir}" ] || [ -f "${dir}" ]; then
+                    if [ -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/shared/${dir}\" ] && echo 1") ]; then
+                        remoteCmd "mv \"releases/${release}/${dir}\" \"shared/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
+                    else
+                        remoteCmd "rm -rf \"releases/${release}/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
+                    fi
                 fi
             done
 
