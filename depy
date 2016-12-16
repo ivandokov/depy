@@ -39,23 +39,28 @@ fi
 # Initialize Depy in current directory if first argument is init
 #
 if [ "$cmd" == 'init' ]; then
-    if [ -d ./.depy ]; then
+    if [ -d .depy ]; then
         error "Depy is already initialized in this directory"
         exit 1
     fi
 
-    mkdir -p ./.depy/hooks
-    cat > ./.depy/hooks/pre-example <<EOL
+    mkdir -p .depy/hooks
+    cat > .depy/hooks/pre <<EOL
 #!/usr/bin/env bash
 
-echo "Pre hook example"
+echo "Pre hook"
 EOL
-    cat > ./.depy/hooks/post-example <<EOL
+    cat > .depy/hooks/post <<EOL
 #!/usr/bin/env bash
 
-echo "Post hook example"
+echo "Post hook"
 EOL
-    cat > ./.depy/config <<EOL
+    cat > .depy/hooks/remote <<EOL
+#!/usr/bin/env bash
+
+echo "Remote hook"
+EOL
+    cat > .depy/config <<EOL
 servers=(
     [production.host]=192.168.20.20
     [production.port]=22
@@ -65,11 +70,20 @@ servers=(
 )
 
 preHooks=(
-    pre-example
+    pre
+)
+
+remoteHooks=(
+    remote
 )
 
 postHooks=(
-    post-example
+    post
+)
+
+ignores=(
+    .git
+    .gitignore
 )
 EOL
     success "Done"
@@ -79,9 +93,9 @@ fi
 #
 # Load configuration
 #
-if [ -f ./.depy/config ]; then
+if [ -f .depy/config ]; then
     declare -A servers
-    . ./.depy/config
+    . .depy/config
 else
     error "Depy configuration not found!"
     error "To initialize Depy run: depy init"
@@ -94,15 +108,11 @@ fi
 # Return hook exit status
 #
 function runHook {
-    (. "./.depy/hooks/$1" | sed "s/^/[$1] /"; return ${PIPESTATUS[0]})
+    (. ".depy/hooks/$1" | sed "s/^/[$1] /"; return ${PIPESTATUS[0]})
 }
 
 function remoteCmd {
     local cmd=$1
-
-    if [ ! -z "$2" ]; then
-        cmd="sudo $cmd"
-    fi
 
     if [ -z "${servers["${target}.host"]}" ]; then
         error "Missing configuration for ${target}"
@@ -114,10 +124,15 @@ function remoteCmd {
     local user=${servers["${target}.user"]}
     local cwd=${servers["${target}.cwd"]}
 
-    ssh ${user}@${host} "cd ${cwd}; $cmd"
+    if [ -f ".depy/hooks/$cmd" ]; then
+        (ssh ${user}@${host} 'set -o pipefail; false | true' "cd ${cwd}; bash -s" < .depy/hooks/${cmd} | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
+    else
+        (ssh ${user}@${host} "cd ${cwd}; $cmd" | sed "s/^/[${target}] /"; return
+        ${PIPESTATUS[0]})
+    fi
 }
 
-case $cmd in
+case ${cmd} in
     "setup")
         remoteCmd "ls -l"
     ;;
@@ -130,7 +145,7 @@ case $cmd in
         for hook in "${preHooks[@]}"; do
             runHook ${hook}
             if [ $? -ne 0 ]; then
-                error "[Error] ${hook}"
+                error "[error] ${hook}"
                 failed=1
                 break
             fi
@@ -139,18 +154,31 @@ case $cmd in
         #
         # Remote server work
         #
-        echo "DO ACTION"
-        echo "${servers["production.host"]}"
+        echo "[${target}] Deploying..."
+        rsync --archive --recursive ${ignores[@]/#/--exclude=} --exclude=.depy \
+                ./ -e "ssh -p ${servers["${target}.port"]}" \
+                ${servers["${target}.user"]}@${servers["${target}.host"]}:${servers["${target}.cwd"]}/tmp
+
+        #
+        # Run remote hooks
+        #
+        for hook in "${remoteHooks[@]}"; do
+            remoteCmd ${hook}
+            if [ $? -ne 0 ]; then
+                error "[${target}][${hook}] Error"
+                failed=1
+                break
+            fi
+        done
 
         #
         # Run post hooks
-        # Skip if any of the pre hooks failed
+        # Skip if any of the pre or remote hooks failed
         #
         if [ ${failed} -eq 0 ]; then
             for hook in "${postHooks[@]}"; do
                 runHook ${hook}
                 if [ $? -ne 0 ]; then
-                    echo 'failing'
                     failed=1
                 fi
             done
