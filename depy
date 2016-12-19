@@ -98,6 +98,8 @@ ignores=(
 shared=(
     logs
 )
+
+keepReleases=4
 EOL
     success "Done"
     exit 0
@@ -220,17 +222,22 @@ case ${cmd} in
         if [ ${failed} -eq 0 ]; then
             echo "[${target}] Linking release as current"
             remoteCmd "rm current; ln -s releases/${release} current"
-
-            #
-            # Run post hooks
-            #
-            for hook in "${postHooks[@]}"; do
-                runHook ${hook}
-                if [ $? -ne 0 ]; then
-                    failed=1
-                fi
-            done
         fi
+
+        #
+        # Run post hooks
+        #
+        for hook in "${postHooks[@]}"; do
+            runHook ${hook}
+            if [ $? -ne 0 ]; then
+                failed=1
+            fi
+        done
+
+        #
+        # Clean up old releases
+        #
+        remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort -r | tail -n +$(($keepReleases + 1)) | xargs rm -rf --"
 
         #
         # Announce result of the operation
@@ -243,6 +250,11 @@ case ${cmd} in
         fi
         echo
         ;;
+
+    "releases")
+        remoteCmdRaw "cd ${servers["${target}.cwd"]}; ls releases"
+    ;;
+
 
     *) error "Invalid option";;
 esac
