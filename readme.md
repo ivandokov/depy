@@ -1,6 +1,6 @@
 # Depy
-#####Simple and dependency free deployment tool.  
-Written in bash 4 the tool does not have any other dependencies than `ssh` and `rsync` which are basic tools for any *nix OS and Windows 10 with Ubuntu.
+### Simple and dependency free deployment tool.  
+Written in bash 4 the tool does not have any dependencies except `ssh` and `rsync` which are basic tools for any *nix OS and Windows 10 with Ubuntu.
  
 All you need is to download `depy` file and place it in a directory which is in your `$PATH`. For Ubuntu and macOS the directory `/usr/local/bin` is perfect for this case. You can do it easily with:
  
