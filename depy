@@ -128,7 +128,7 @@ function runHook {
 
 function remoteCmdRaw {
     if [ -z "${servers["${target}.host"]}" ]; then
-        error "Missing configuration for server ${target}"
+        error "Missing configuration for server \"${target}\""
         exit 1
     fi
 
@@ -145,6 +145,12 @@ function remoteCmd {
         (remoteCmdRaw "cd ${servers["${target}.cwd"]}; $cmd" | sed "s/^/[${target}] /"; return ${PIPESTATUS[0]})
     fi
 }
+
+# All commands below require valid $target
+if [ -z "$target" ]; then
+    error "Missing server name!"
+    exit 1
+fi
 
 case ${cmd} in
     "setup")
