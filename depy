@@ -67,7 +67,8 @@ DESCRIPTION
         2) transfer files to the target server
         3) runs remote hooks. If any of the hooks fails* the deployment is cancelled and marked as failed. The failed release will be deleted
         4) linking release to be the current / active release
-        5) runs post hooks locally. If any of the hooks fails* the deployment marked as failed, but the deployment is successful and release is not deleted
+        5) clean up old releases on the target server
+        6) runs post hooks locally. If any of the hooks fails* the deployment marked as failed, but the deployment is successful and release is not deleted
         * exit with status other than 0
 
     releases [TARGET]
