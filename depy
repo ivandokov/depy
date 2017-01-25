@@ -243,7 +243,7 @@ case ${cmd} in
         #
         # Clean up old releases
         #
-        remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort -r | tail -n +$(($keepReleases + 1)) | xargs rm -rf --"
+        remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort -r | sed '1,${keepReleases}d' | xargs rm -rf --"
 
         #
         # Announce result of the operation
