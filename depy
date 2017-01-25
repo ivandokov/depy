@@ -50,12 +50,13 @@ NAME
     depy
 
 SYNOPSIS
-    depy [OPTION] [TARGET]
+    depy [ARGUMENT] [TARGET]
 
 DESCRIPTION
     Depy is a dependency free deployment tool written in BASH. The minimum BASH version required is 4.
     It can work with multiple servers and keep older releases just in case.
 
+ARGUMENTS
     init
         create the required configuration files in .depy directory. This is the only argument which does not require to specify target server.
 
