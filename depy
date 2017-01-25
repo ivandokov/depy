@@ -190,6 +190,14 @@ function remoteCmd {
     fi
 }
 
+function link {
+    remoteCmd "rm current; ln -s releases/${1} current"
+}
+
+function rollback {
+    link "$1"
+}
+
 # All commands below require valid $target
 if [ -z "$target" ]; then
     error "Missing server name!"
@@ -271,7 +279,7 @@ case ${cmd} in
         #
         if [ ${failed} -eq 0 ]; then
             echo "[${target}] Linking release as current"
-            remoteCmd "rm current; ln -s releases/${release} current"
+            link "${release}"
         fi
 
         #
@@ -303,6 +311,16 @@ case ${cmd} in
 
     "releases")
         remoteCmdRaw "cd ${servers["${target}.cwd"]}; ls releases"
+    ;;
+
+    "rollback")
+        release=$3
+        if [ ! -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/releases/${release}\" ] && echo 1") ]; then
+            echo "[${target}] Linking release ${release} as current"
+            link "${release}"
+        else
+            error "[${target}] Release ${release} not found"
+        fi
     ;;
 
     *) showHelp;;
