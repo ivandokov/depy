@@ -50,7 +50,7 @@ NAME
     depy
 
 SYNOPSIS
-    depy [OPTIONS] [TARGET]
+    depy [OPTION] [TARGET]
 
 DESCRIPTION
     Depy is a dependency free deployment tool written in BASH. The minimum BASH version required is 4.
