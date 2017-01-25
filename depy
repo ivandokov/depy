@@ -44,6 +44,49 @@ if (( ${BASH_VERSION%%.*} < 4 )); then
     exit 1
 fi
 
+function showHelp {
+cat <<EOL | less
+NAME
+    depy
+
+SYNOPSIS
+    depy [OPTIONS] [TARGET]
+
+DESCRIPTION
+    Depy is a dependency free deployment tool written in BASH. The minimum BASH version required is 4.
+    It can work with multiple servers and keep older releases just in case.
+
+    init
+        create the required configuration files in .depy directory. This is the only argument which does not require to specify target server.
+
+    setup [TARGET]
+        create required directories structure on the remote server.
+
+    deploy [TARGET]
+        1) runs pre hooks locally. If any of the hooks fails* the deployment is cancelled and marked as failed
+        2) transfer files to the target server
+        3) runs remote hooks. If any of the hooks fails* the deployment is cancelled and marked as failed. The failed release will be deleted
+        4) linking release to be the current / active release
+        5) runs post hooks locally. If any of the hooks fails* the deployment marked as failed, but the deployment is successful and release is not deleted
+        * exit with status other than 0
+
+    releases [TARGET]
+        list all existing releases on the target server
+
+    rollback [TARGET] [RELEASE]
+        rollback to the specified release on the target server
+EOL
+exit 1
+}
+
+#
+# Print help
+#
+if [ -z "$cmd" ]; then
+    showHelp
+fi
+
+
 #
 # Initialize Depy in current directory if first argument is init
 #
@@ -261,6 +304,5 @@ case ${cmd} in
         remoteCmdRaw "cd ${servers["${target}.cwd"]}; ls releases"
     ;;
 
-
-    *) error "Invalid option";;
+    *) showHelp;;
 esac
