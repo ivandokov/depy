@@ -220,7 +220,7 @@ case ${cmd} in
 
     "deploy")
         failed=0
-        remoteFailed=0
+        remoteHooksFailed=0
 
         #
         # Run pre hooks
@@ -270,7 +270,7 @@ case ${cmd} in
                 if [ $? -ne 0 ]; then
                     error "[${target}][${hook}] Finished with exit code different than 0"
                     failed=1
-                    remoteFailed=1
+                    remoteHooksFailed=1
                     break
                 fi
             done
@@ -287,7 +287,7 @@ case ${cmd} in
         #
         # Clean up old releases or remove failed release
         #
-        if [ ${remoteFailed} -eq 0 ]; then
+        if [ ${remoteHooksFailed} -eq 0 ]; then
             remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort -r | sed '1,${keepReleases}d' | xargs rm -rf --"
         else
             remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort | tail -n 1 | xargs rm -rf --"
