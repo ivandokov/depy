@@ -28,11 +28,15 @@ function errorBig {
 }
 
 if ! which rsync >/dev/null; then
-    error "Cannot find rsync"
+    error "Cannot find rsync binary"
     exit 1
 fi
 if ! which ssh >/dev/null; then
-    error "Cannot find ssh"
+    error "Cannot find ssh binary"
+    exit 1
+fi
+if ! which zip >/dev/null; then
+    error "Cannot find zip binary"
     exit 1
 fi
 
@@ -77,6 +81,9 @@ ARGUMENTS
 
     rollback [TARGET] [RELEASE]
         rollback to the specified release on the target server
+
+    pack
+        create package with the files to be deployed. This can be used for manual deployment
 EOL
 exit 1
 }
@@ -135,9 +142,10 @@ postHooks=(
     post
 )
 
+# Must match zip --exclude pattern
+# https://linux.die.net/man/1/zip
 ignores=(
-    .git
-    .gitignore
+    *.git*
 )
 
 shared=(
@@ -191,6 +199,10 @@ function remoteCmd {
     fi
 }
 
+function releaseName {
+    echo $(date -u +"%Y%m%d%H%M%S")
+}
+
 function link {
     remoteCmd "rm current; ln -s releases/${1} current"
 }
@@ -198,6 +210,21 @@ function link {
 function rollback {
     link "$1"
 }
+
+function pack {
+    if [ -z "$1" ]; then
+        release=$(releaseName)
+    else
+        release=${1}
+    fi
+
+    zip -9 -r -q ${ignores[@]/#/--exclude=} --exclude=*.depy/* --exclude=*.DS_Store* "${release}.zip" .
+}
+
+if [ "$cmd" == 'pack' ]; then
+    pack
+    exit 0
+fi
 
 # All commands below require valid $target
 if [ -z "$target" ]; then
@@ -239,16 +266,23 @@ case ${cmd} in
         # Remote server work
         #
         if [ ${failed} -eq 0 ]; then
-            echo "[${target}] Transferring files"
-
             release=$(date -u +"%Y%m%d%H%M%S")
             cwd=${servers["${target}.cwd"]}
             server_dns=${servers["${target}.user"]}@${servers["${target}.host"]}
-            server_release_dir=${servers["${target}.cwd"]}/releases/${release}
+            server_releases_dir=${servers["${target}.cwd"]}/releases/
+            server_release_dir=${server_releases_dir}${release}
 
-            rsync --archive --recursive ${ignores[@]/#/--exclude=} --exclude=.depy \
-                    ./ -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" \
-                    ${server_dns}:${server_release_dir}
+            echo "[${target}] Packing files"
+            pack ${release}
+
+            echo "[${target}] Transferring packed files"
+            rsync --archive "${release}.zip" -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" ${server_dns}:${server_releases_dir}
+
+            echo "[${target}] Unpacking files"
+            remoteCmd "unzip -q \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
+
+            echo "[${target}] Cleaning up packed files"
+            rm "${release}.zip"
 
             #
             # Setup shared files and folders
