@@ -1,28 +1,45 @@
 # Depy
 ### Simple and dependency free deployment tool.  
-Written in bash 4 the tool does not have any dependencies except `ssh` and `rsync` which are basic tools for any *nix OS and Windows 10 with Ubuntu.
- 
-All you need is to download `depy` file and place it in a directory which is in your `$PATH`. For Ubuntu and macOS the directory `/usr/local/bin` is perfect for this case. You can do it easily with:
+Written in bash 4 the tool does not have any dependencies but `ssh`, `rsync` and `zip` which are basic tools which you probably have installed already on your system.
+
+## Installation
+Download `depy` file and place it in a directory which is in your `$PATH` and make it executable:
  
  ```bash
-wget -q https://raw.githubusercontent.com/ivandokov/depy/master/depy; sudo mv depy /usr/local/bin/depy
+wget -q https://raw.githubusercontent.com/ivandokov/depy/master/depy \
+chmod +x depy \
+sudo mv depy /usr/local/bin/depy
 ```
 
 ## Usage
-
-Initialize depy for current directory / project.
 ```bash
-depy init
-```
+SYNOPSIS
+    depy [ARGUMENT] [TARGET]
 
-Setup server with name `<server>`
-```bash
-depy setup <server>
-```
+ARGUMENTS
+    init
+        create the required configuration files in .depy directory. This is the only argument which does not require to specify target server.
 
-Deploy to server with name `<server>`
-```bash
-depy deploy <server>
+    setup [TARGET]
+        create required directories structure on the remote server.
+
+    deploy [TARGET]
+        1) runs pre hooks locally. If any of the hooks fails* the deployment is cancelled and marked as failed
+        2) transfer files to the target server
+        3) runs remote hooks. If any of the hooks fails* the deployment is cancelled and marked as failed. The failed release will be deleted
+        4) linking release to be the current / active release
+        5) clean up old releases on the target server
+        6) runs post hooks locally. If any of the hooks fails* the deployment marked as failed, but the deployment is successful and release is not deleted
+        * exit with status other than 0
+
+    releases [TARGET]
+        list all existing releases on the target server
+
+    rollback [TARGET] [RELEASE]
+        rollback to the specified release on the target server
+
+    pack
+        create package with the files to be deployed. This can be used for manual deployment
 ```
 
 ## Configuration
@@ -72,7 +89,7 @@ ignores=(
     .gitignore
 )
 ```
-**ignores** holds the directories and files which will be excluded from the deploying process. They will not be uploaded to the server.
+**ignores** holds the directories and files which will be excluded from the deploying process. They will not be uploaded to the server. **Important** the supported patterns can be found in zip documentation at https://linux.die.net/man/1/zip for --exclude argument
 
 ```bash
 shared=(
@@ -80,3 +97,8 @@ shared=(
 )
 ```
 **shared** holds the directories and files which will be shared between all releases. After the first release the shared directories and files will be moved to `shared` directory on the server and a symlink will be created for each one to the release directory. All other releases will **remove these files and directories** and will use symlink to the `shared` directory.
+
+```bash
+keepReleases=4
+```
+**keepReleases** is the count of releases to keep on the server which can be used for rollback 
