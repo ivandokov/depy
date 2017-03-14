@@ -4,6 +4,12 @@ arg=$1
 target=$2
 verbose=0
 
+for argument in "$@"; do
+    case "${argument}" in
+        -v|--verbose) verbose=1 ;;
+    esac
+done
+
 function success {
     echo -e "\033[0;32m$1\033[0m"
 }
@@ -53,7 +59,7 @@ fi
 # Help
 #
 function showHelp {
-cat <<EOL | less
+cat <<EOL | less -X
 NAME
     depy
 
@@ -93,27 +99,16 @@ exit 1
 }
 
 #
-# Catch opts
-#
-while getopts ":vh" opt; do
-    case ${opt} in
-        v) verbose=1 ;;
-        h) showHelp ;;
-    esac
-done
-
-#
 # Print help if missing argument
 #
-if [ -z "$arg" ]; then
+if [ -z "${arg}" ]; then
     showHelp
 fi
-
 
 #
 # Initialize Depy in current directory if first argument is init
 #
-if [ "$arg" == 'init' ]; then
+if [ "${arg}" == 'init' ]; then
     if [ -d .depy ]; then
         error "Depy is already initialized in this directory"
         exit 1
@@ -219,6 +214,9 @@ function releaseName {
 
 function link {
     remoteCmd "rm current; ln -s releases/${1} current"
+    if [ ${verbose} -eq 1 ]; then
+        echo "rm current; ln -s releases/${1} current"
+    fi
 }
 
 function rollback {
@@ -226,16 +224,18 @@ function rollback {
 }
 
 function pack {
+    local q=$(if [ ${verbose} -ne 1 ]; then echo "-q"; fi)
+
     if [ -z "$1" ]; then
         release=$(releaseName)
     else
         release=${1}
     fi
 
-    zip -9 -r -q ${ignores[@]/#/--exclude=} --exclude=*.depy/* --exclude=*.DS_Store* "${release}.zip" .
+    zip -9 -r ${q} ${ignores[@]/#/--exclude=} --exclude=*.depy/* --exclude=*.DS_Store* "${release}.zip" .
 }
 
-if [ "$arg" == 'pack' ]; then
+if [ "${arg}" == 'pack' ]; then
     pack
     exit 0
 fi
@@ -246,8 +246,8 @@ if [ -z "$target" ]; then
     exit 1
 fi
 
-case ${arg} in
-    "setup")
+case "${arg}" in
+    setup)
         if [ -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/releases\" ] && echo 1") ]; then
             remoteCmd "mkdir releases"
         fi
@@ -260,7 +260,7 @@ case ${arg} in
         success "Done"
     ;;
 
-    "deploy")
+    deploy)
         failed=0
         remoteHooksFailed=0
 
@@ -290,13 +290,18 @@ case ${arg} in
             pack ${release}
 
             echo "[${target}] Transferring packed files"
-            rsync --archive "${release}.zip" -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" ${server_dns}:${server_releases_dir}
+            rsyncProgress=$(if [ ${verbose} -eq 1 ]; then echo "--progress"; fi)
+            rsync --archive ${rsyncProgress} "${release}.zip" -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" ${server_dns}:${server_releases_dir}
 
             echo "[${target}] Unpacking files"
-            remoteCmd "unzip -q \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
+            unzipQuiet=$(if [ ${verbose} -ne 1 ]; then echo "-q"; fi)
+            remoteCmd "unzip ${unzipQuiet} \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
 
             echo "[${target}] Cleaning up packed files"
             rm "${release}.zip"
+            if [ ${verbose} -eq 1 ]; then
+                echo "rm ${release}.zip"
+            fi
 
             #
             # Setup shared files and folders
@@ -364,11 +369,11 @@ case ${arg} in
         echo
         ;;
 
-    "releases")
+    releases)
         remoteCmdRaw "cd ${servers["${target}.cwd"]}; ls releases"
     ;;
 
-    "rollback")
+    rollback)
         release=$3
         if [ ! -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/releases/${release}\" ] && echo 1") ]; then
             echo "[${target}] Linking release ${release} as current"
@@ -377,6 +382,4 @@ case ${arg} in
             error "[${target}] Release ${release} not found"
         fi
     ;;
-
-    *) showHelp;;
 esac

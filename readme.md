@@ -40,6 +40,9 @@ ARGUMENTS
 
     pack
         create package with the files to be deployed. This can be used for manual deployment
+        
+    
+    You can specify -v|--verbose flag to enable verbose mode and see detailed information about the process. 
 ```
 
 ## Configuration
