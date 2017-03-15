@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 arg=$1
 target=$2
 verbose=0
@@ -34,6 +36,8 @@ function errorBig {
     announce $1 '0;30;41'
 }
 
+# Check for dependencies
+#
 if ! which rsync >/dev/null; then
     error "Cannot find rsync binary"
     exit 1
@@ -47,7 +51,6 @@ if ! which zip >/dev/null; then
     exit 1
 fi
 
-#
 # Validate Bash version
 #
 if (( ${BASH_VERSION%%.*} < 4 )); then
@@ -55,11 +58,8 @@ if (( ${BASH_VERSION%%.*} < 4 )); then
     exit 1
 fi
 
-#
-# Help
-#
 function showHelp {
-cat <<EOL | less -X
+    cat <<EOL | less -X
 NAME
     depy
 
@@ -95,42 +95,110 @@ ARGUMENTS
     pack
         create package with the files to be deployed. This can be used for manual deployment
 EOL
-exit 1
+    exit 1
 }
 
+# Check if target server argument is passed in
 #
-# Print help if missing argument
-#
-if [ -z "${arg}" ]; then
-    showHelp
-fi
+function requireTargetServer {
+    if [ -z "$target" ]; then
+        error "Missing server name!"
+        exit 1
+    fi
+}
 
+# Run each hook in a subprocess
+# Prefix the hook with the file name
+# Return hook exit status
 #
-# Initialize Depy in current directory if first argument is init
+function runHook {
+    (. ".depy/hooks/$1" | sed "s/^/[local][$1] /"; return ${PIPESTATUS[0]})
+}
+
+# Run remote command without any prefixes or changes
 #
-if [ "${arg}" == 'init' ]; then
-    if [ -d .depy ]; then
-        error "Depy is already initialized in this directory"
+function remoteCmdRaw {
+    if [ -z "${servers["${target}.host"]}" ]; then
+        error "Missing configuration for server \"${target}\""
         exit 1
     fi
 
-    mkdir -p .depy/hooks
-    cat > .depy/hooks/pre <<EOL
+    ssh ${servers["${target}.user"]}@${servers["${target}.host"]} -i "${servers["${target}.identity"]}" -p ${servers["${target}.port"]} $@
+}
+
+# Run remote command and prefix the output with the target server name
+# Also forward the proper return code
+#
+function remoteCmd {
+    local cmd=$1
+    local server_release_dir=$2
+
+    if [ -f ".depy/hooks/$cmd" ]; then
+        (remoteCmdRaw "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
+    else
+        (remoteCmdRaw "cd ${servers["${target}.cwd"]}; $cmd" | sed "s/^/[${target}] /"; return ${PIPESTATUS[0]})
+    fi
+}
+
+# Generate release name
+#
+function releaseName {
+    echo $(date -u +"%Y%m%d%H%M%S")
+}
+
+# Create symbolic link for the current release on the server
+#
+function link {
+    remoteCmd "rm current; ln -s releases/${1} current"
+    if [ ${verbose} -eq 1 ]; then
+        echo "rm current; ln -s releases/${1} current"
+    fi
+}
+
+# Create symbolic link from the specified release to current
+#
+function rollback {
+    link "$1"
+}
+
+# Pack the local files for release
+#
+function pack {
+    local q=$(if [ ${verbose} -ne 1 ]; then echo "-q"; fi)
+
+    if [ -z "$1" ]; then
+        release=$(releaseName)
+    else
+        release=${1}
+    fi
+
+    zip -9 -r ${q} ${ignores[@]/#/--exclude=} --exclude=*.depy/* --exclude=*.DS_Store* "${release}.zip" .
+}
+
+case "${arg}" in
+    init)
+        if [ -d .depy ]; then
+            error "Depy is already initialized in this directory"
+            exit 1
+        fi
+
+        mkdir -p .depy/hooks
+        cat > .depy/hooks/pre <<EOL
 #!/usr/bin/env bash
 
 echo "Pre hook"
 EOL
-    cat > .depy/hooks/post <<EOL
+        cat > .depy/hooks/post <<EOL
 #!/usr/bin/env bash
 
 echo "Post hook"
 EOL
-    cat > .depy/hooks/remote <<EOL
+        cat > .depy/hooks/remote <<EOL
 #!/usr/bin/env bash
 
 echo "Remote hook"
 EOL
-    cat > .depy/config <<EOL
+        cat > .depy/config <<EOL
 servers=(
     [production.host]=192.168.20.20
     [production.port]=22
@@ -163,91 +231,20 @@ shared=(
 
 keepReleases=4
 EOL
-    success "Done"
-    exit 0
-fi
+        success "Done"
+    ;;
 
-#
-# Load configuration
-#
-if [ -f .depy/config ]; then
-    declare -A servers
-    . .depy/config
-else
-    error "Depy configuration not found!"
-    error "To initialize Depy run: depy init"
-    exit 1
-fi
-
-#
-# Run each hook in a subprocess
-# Prefix the hook with the file name
-# Return hook exit status
-#
-function runHook {
-    (. ".depy/hooks/$1" | sed "s/^/[local][$1] /"; return ${PIPESTATUS[0]})
-}
-
-function remoteCmdRaw {
-    if [ -z "${servers["${target}.host"]}" ]; then
-        error "Missing configuration for server \"${target}\""
-        exit 1
-    fi
-
-    ssh ${servers["${target}.user"]}@${servers["${target}.host"]} -i "${servers["${target}.identity"]}" -p ${servers["${target}.port"]} $@
-}
-
-function remoteCmd {
-    local cmd=$1
-    local server_release_dir=$2
-
-    if [ -f ".depy/hooks/$cmd" ]; then
-        (remoteCmdRaw "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
-    else
-        (remoteCmdRaw "cd ${servers["${target}.cwd"]}; $cmd" | sed "s/^/[${target}] /"; return ${PIPESTATUS[0]})
-    fi
-}
-
-function releaseName {
-    echo $(date -u +"%Y%m%d%H%M%S")
-}
-
-function link {
-    remoteCmd "rm current; ln -s releases/${1} current"
-    if [ ${verbose} -eq 1 ]; then
-        echo "rm current; ln -s releases/${1} current"
-    fi
-}
-
-function rollback {
-    link "$1"
-}
-
-function pack {
-    local q=$(if [ ${verbose} -ne 1 ]; then echo "-q"; fi)
-
-    if [ -z "$1" ]; then
-        release=$(releaseName)
-    else
-        release=${1}
-    fi
-
-    zip -9 -r ${q} ${ignores[@]/#/--exclude=} --exclude=*.depy/* --exclude=*.DS_Store* "${release}.zip" .
-}
-
-if [ "${arg}" == 'pack' ]; then
-    pack
-    exit 0
-fi
-
-# All commands below require valid $target
-if [ -z "$target" ]; then
-    error "Missing server name!"
-    exit 1
-fi
-
-case "${arg}" in
     setup)
+        if [ -f .depy/config ]; then
+            declare -A servers
+            . .depy/config
+        else
+            error "Depy configuration not found!"
+            error "To initialize Depy run: depy init"
+            exit 1
+        fi
+        requireTargetServer
+
         if [ -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/releases\" ] && echo 1") ]; then
             remoteCmd "mkdir releases"
         fi
@@ -261,6 +258,16 @@ case "${arg}" in
     ;;
 
     deploy)
+        if [ -f .depy/config ]; then
+            declare -A servers
+            . .depy/config
+        else
+            error "Depy configuration not found!"
+            error "To initialize Depy run: depy init"
+            exit 1
+        fi
+        requireTargetServer
+
         failed=0
         remoteHooksFailed=0
 
@@ -367,19 +374,54 @@ case "${arg}" in
             errorBig "Failure"
         fi
         echo
-        ;;
+    ;;
 
     releases)
+        if [ -f .depy/config ]; then
+            declare -A servers
+            . .depy/config
+        else
+            error "Depy configuration not found!"
+            error "To initialize Depy run: depy init"
+            exit 1
+        fi
+        requireTargetServer
         remoteCmdRaw "cd ${servers["${target}.cwd"]}; ls releases"
     ;;
 
     rollback)
+        if [ -f .depy/config ]; then
+            declare -A servers
+            . .depy/config
+        else
+            error "Depy configuration not found!"
+            error "To initialize Depy run: depy init"
+            exit 1
+        fi
+        requireTargetServer
         release=$3
+
         if [ ! -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/releases/${release}\" ] && echo 1") ]; then
             echo "[${target}] Linking release ${release} as current"
             link "${release}"
         else
             error "[${target}] Release ${release} not found"
         fi
+    ;;
+
+    pack)
+        if [ -f .depy/config ]; then
+            declare -A servers
+            . .depy/config
+        else
+            error "Depy configuration not found!"
+            error "To initialize Depy run: depy init"
+            exit 1
+        fi
+        pack
+    ;;
+
+    *)
+        showHelp
     ;;
 esac
