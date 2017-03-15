@@ -2,6 +2,8 @@
 
 set -e
 
+start=`date +%s`
+
 arg=$1
 target=$2
 verbose=0
@@ -446,3 +448,7 @@ EOL
         showHelp
     ;;
 esac
+
+end=`date +%s`
+runtime=$((end-start))
+echo "Finished for ${runtime} seconds"
