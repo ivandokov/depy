@@ -5,10 +5,12 @@ set -e
 arg=$1
 target=$2
 verbose=0
+incremental=0
 
 for argument in "$@"; do
     case "${argument}" in
         -v|--verbose) verbose=1 ;;
+        -i|--incremental) incremental=1 ;;
     esac
 done
 
@@ -293,21 +295,40 @@ EOL
             server_releases_dir=${servers["${target}.cwd"]}/releases/
             server_release_dir=${server_releases_dir}${release}
 
-            echo "[${target}] Packing files"
-            pack ${release}
+            if [ ${incremental} -eq 1 ]; then
+                latestRelease=$(remoteCmdRaw "cd ${servers["${target}.cwd"]}; ls -1r releases | head -1")
+            fi
 
-            echo "[${target}] Transferring packed files"
-            rsyncProgress=$(if [ ${verbose} -eq 1 ]; then echo "--progress"; fi)
-            rsync --archive ${rsyncProgress} "${release}.zip" -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" ${server_dns}:${server_releases_dir}
+            if [ -z "${latestRelease}" ]; then
+                if [ ${incremental} -eq 1 ]; then
+                    echo "[${target}] No previous release found. Proceeding as full deploy"
+                fi
 
-            echo "[${target}] Unpacking files"
-            unzipQuiet=$(if [ ${verbose} -ne 1 ]; then echo "-q"; fi)
-            remoteCmd "unzip ${unzipQuiet} \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
+                echo "[${target}] Packing files"
+                pack ${release}
 
-            echo "[${target}] Cleaning up packed files"
-            rm "${release}.zip"
-            if [ ${verbose} -eq 1 ]; then
-                echo "rm ${release}.zip"
+                echo "[${target}] Transferring packed files"
+                rsyncProgress=$(if [ ${verbose} -eq 1 ]; then echo "--progress"; fi)
+                rsync --archive ${rsyncProgress} "${release}.zip" -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" \
+                    ${server_dns}:${server_releases_dir}
+
+                echo "[${target}] Unpacking files"
+                unzipQuiet=$(if [ ${verbose} -ne 1 ]; then echo "-q"; fi)
+                remoteCmd "unzip ${unzipQuiet} \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
+
+                echo "[${target}] Cleaning up packed files"
+                rm "${release}.zip"
+                if [ ${verbose} -eq 1 ]; then
+                    echo "rm ${release}.zip"
+                fi
+            else
+                echo "[${target}] Preparing for incremental deploy"
+                remoteCmd "cp -R ${server_releases_dir}${latestRelease} ${server_release_dir}"
+
+                echo "[${target}] Transferring files"
+                rsyncProgress=$(if [ ${verbose} -eq 1 ]; then echo "--progress"; fi)
+                rsync --archive ${rsyncProgress} ${ignores[@]/#/--exclude=} --exclude=.depy --exclude=.DS_Store . \
+                    -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" ${server_dns}:${server_release_dir}
             fi
 
             #
