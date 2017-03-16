@@ -1,0 +1,25 @@
+# bash completion for depy
+
+have depy &&
+_depy()
+{
+    COMPREPLY=()
+    local cur prev servers
+    _get_comp_words_by_ref -n : cur prev
+
+    _expand || return 0
+
+    case $prev in
+        setup|deploy|releases|rollback)
+            if [ -f ./.depy/config ]; then
+                servers=$(grep '.host' ./.depy/config | sed -e 's/.*\[\(.*\).host.*/\1/')
+                COMPREPLY=( $( compgen -W "$servers" -- "$cur" ) )
+            fi
+            return 0
+            ;;
+    esac
+
+    COMPREPLY=( $( compgen -W 'init setup deploy releases rollback pack' -- "$cur" ) )
+    return 0
+} &&
+complete -F _depy depy
