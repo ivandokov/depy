@@ -1,7 +1,7 @@
 # Depy
 ### Simple and nearly dependency free deployment tool.  
 Written in bash 4 the tool does not have any major dependencies. Everything you need to have installed is:
- * `git` (*to download the project and for updates*)
+ * `git` (*download the project and for updates*)
  * `ssh` (*communicate with the server*)
  * `rsync` (*transfer files*)
  * `zip` (*pack releases*)
