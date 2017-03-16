@@ -21,7 +21,7 @@ ARGUMENTS
     setup [TARGET]
         create required directories structure on the remote server.
 
-    deploy [TARGET]
+    deploy [TARGET] [-i|--incremental]
         1) runs pre hooks locally. If any of the hooks fails* the deployment is cancelled and marked as failed
         2) transfer files to the target server
         3) runs remote hooks. If any of the hooks fails* the deployment is cancelled and marked as failed. The failed release will be deleted
@@ -29,7 +29,9 @@ ARGUMENTS
         5) clean up old releases on the target server
         6) runs post hooks locally. If any of the hooks fails* the deployment marked as failed, but the deployment is successful and release is not deleted
         * exit with status other than 0
-
+        
+        -i|--incremental flag will change the deployment process. It will duplicate the latest release on the server and upload only the changes. This will decrease the deployment time
+        
     releases [TARGET]
         list all existing releases on the target server
 
