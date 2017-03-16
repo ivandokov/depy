@@ -10,7 +10,7 @@ cd depy
 ```
 
 ## Usage
-```bash
+```
 SYNOPSIS
     depy [ARGUMENT] [TARGET]
 
