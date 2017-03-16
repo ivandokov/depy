@@ -181,6 +181,27 @@ function pack {
     zip -9 -r ${q} ${ignores[@]/#/--exclude=} --exclude=*.depy/* --exclude=*.DS_Store* "${release}.zip" .
 }
 
+readlink() {
+    ls -l $1 | awk '{print $11}'
+}
+
+readlinkRecursive() {
+    local src tmp
+
+    src=$(readlink $1)
+
+    while true; do
+        tmp=$(readlink $src)
+        if [ -z "$tmp" ]; then
+            break
+        else
+            src=$(readlink $tmp)
+        fi
+    done
+
+    echo $src;
+}
+
 case "${arg}" in
     init)
         if [ -d .depy ]; then
@@ -376,7 +397,7 @@ EOL
         if [ ${remoteHooksFailed} -eq 0 ]; then
             remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort -r | sed '1,${keepReleases}d' | xargs rm -rf --"
         else
-            remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort | tail -n 1 | xargs rm -rf --"
+            remoteC md "cd ${servers["${target}.cwd"]}/releases; ls | sort | tail -n 1 | xargs rm -rf --"
         fi
 
         #
@@ -444,6 +465,14 @@ EOL
             exit 1
         fi
         pack
+    ;;
+
+    update)
+        self=$(readlinkRecursive "$0")
+        dir=$(dirname ${self})
+        cd $dir
+        git pull
+        success "Done"
     ;;
 
     *)
