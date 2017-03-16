@@ -3,8 +3,6 @@
 Written in bash 4 the tool does not have any dependencies but `ssh`, `rsync` and `zip` which are basic tools which you probably have installed already on your system.
 
 ## Installation
-Download `depy` file and place it in a directory which is in your `$PATH` and make it executable:
- 
  ```bash
 git clone https://github.com/ivandokov/depy.git
 cd depy
