@@ -471,7 +471,9 @@ EOL
         self=$(readlinkRecursive "$0")
         dir=$(dirname ${self})
         cd $dir
-        git pull
+        git fetch --tags
+        tag=$(git tag | sort -V | grep -v "rc" | grep -v "alpha" | grep -v "beta" | tail -1)
+        git checkout ${tag}
         success "Done"
     ;;
 
