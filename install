@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+set -e
+
+BIN_DIRS=(/usr/local/bin /usr/bin /bin)
+
+for DIR in "${BIN_DIRS[@]}"; do
+    if [ -d ${DIR} ]; then
+        echo "Making depy globally accessible"
+        sudo ln -s $(pwd)/depy ${DIR}/depy
+        break
+    fi
+done
+
+if [ -d /etc/bash_completion.d ]; then
+    COMPLETION_DIR=/etc/bash_completion.d
+elif [ -d /usr/local/etc/bash_completion.d ]; then
+    COMPLETION_DIR=/usr/local/etc/bash_completion.d
+else
+    echo "Cannot find bash_completion.d directory"
+    exit 2
+fi
+
+echo "Installing depy bash completion"
+if [ -w ${COMPLETION_DIR} ]; then
+    ln -s $(pwd)/bash-completion ${COMPLETION_DIR}/depy
+else
+    sudo ln -s $(pwd)/bash-completion ${COMPLETION_DIR}/depy
+fi
+
+echo "Done! Restart console to use depy bash completion"
