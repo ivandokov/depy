@@ -331,7 +331,7 @@ EOL
 
                 echo "[${target}] Transferring files"
                 rsyncProgress=$(if [ ${verbose} -eq 1 ]; then echo "--progress"; fi)
-                rsync --archive ${rsyncProgress} ${ignores[@]/#/--exclude=} --exclude=.depy --exclude=.DS_Store . \
+                rsync --archive --delete-after ${rsyncProgress} ${ignores[@]/#/--exclude=} --exclude=.depy --exclude=.DS_Store . \
                     -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" ${server_dns}:${server_release_dir}
             fi
 
