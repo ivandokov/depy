@@ -6,9 +6,9 @@ Written in bash 4 the tool does not have any dependencies but `ssh`, `rsync` and
 Download `depy` file and place it in a directory which is in your `$PATH` and make it executable:
  
  ```bash
-wget -q https://raw.githubusercontent.com/ivandokov/depy/master/depy
-chmod +x depy
-sudo mv depy /usr/local/bin/depy
+git clone https://github.com/ivandokov/depy.git
+cd depy
+./install
 ```
 
 ## Usage
