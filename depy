@@ -312,7 +312,6 @@ EOL
         failed=0
         remoteHooksFailed=0
 
-        #
         # Run pre hooks
         #
         for hook in "${preHooks[@]}"; do
@@ -324,7 +323,6 @@ EOL
             fi
         done
 
-        #
         # Remote server work
         #
         if [ ${failed} -eq 0 ]; then
@@ -354,12 +352,6 @@ EOL
                 echo "[${target}] Unpacking files"
                 unzipQuiet=$(if [ ${verbose} -ne 1 ]; then echo "-q"; fi)
                 remoteCmd "unzip ${unzipQuiet} \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
-
-                echo "[local] Cleaning up packed files"
-                rm "${release}.zip"
-                if [ ${verbose} -eq 1 ]; then
-                    echo "rm ${release}.zip"
-                fi
             else
                 echo "[${target}] Preparing for incremental deploy"
                 remoteCmd "cp -R ${server_releases_dir}${latestRelease} ${server_release_dir}"
@@ -370,7 +362,6 @@ EOL
                     -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" ${server_dns}:${server_release_dir}
             fi
 
-            #
             # Setup shared files and folders
             #
             for dir in "${shared[@]}"; do
@@ -383,7 +374,6 @@ EOL
                 fi
             done
 
-            #
             # Run remote hooks
             #
             for hook in "${remoteHooks[@]}"; do
@@ -397,7 +387,6 @@ EOL
             done
         fi
 
-        #
         # Skip if any of the pre or remote hooks failed
         #
         if [ ${failed} -eq 0 ]; then
@@ -405,16 +394,15 @@ EOL
             link "${release}"
         fi
 
-        #
         # Clean up old releases or remove failed release
         #
+        echo "[${target}] Clean up old releases or remove failed release"
         if [ ${remoteHooksFailed} -eq 0 ]; then
             remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort -r | sed '1,${keepReleases}d' | xargs rm -rf --"
         else
-            remoteC md "cd ${servers["${target}.cwd"]}/releases; ls | sort | tail -n 1 | xargs rm -rf --"
+            remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort | tail -n 1 | xargs rm -rf --"
         fi
 
-        #
         # Run post hooks
         #
         for hook in "${postHooks[@]}"; do
@@ -424,7 +412,16 @@ EOL
             fi
         done
 
+        # Cleaning up local release package
         #
+        if [ ${incremental} -ne 1 ]; then
+            echo "[local] Cleaning up local release package"
+            rm "${release}.zip"
+            if [ ${verbose} -eq 1 ]; then
+                echo "rm ${release}.zip"
+            fi
+        fi
+
         # Announce result of the operation
         #
         echo
