@@ -63,7 +63,7 @@ if (( ${BASH_VERSION%%.*} < 4 )); then
 fi
 
 function showHelp {
-    cat <<EOL | less -X
+    cat <<EOL | less
 NAME
     depy
 
