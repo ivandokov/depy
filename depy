@@ -297,6 +297,10 @@ EOL
         if [ -z $(remoteCmdRaw "[ -L \"${servers["${target}.cwd"]}/current\" ] && echo 1") ]; then
             remoteCmd "ln -s /dev/null current"
         fi
+        if [ -z $(remoteCmdRaw "which unzip") ]; then
+            error "Server ${target} does not have unzip installed"
+            exit 1
+        fi
         success "Done"
     ;;
 
