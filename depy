@@ -329,7 +329,7 @@ EOL
                     echo "[${target}] No previous release found. Proceeding as full deploy"
                 fi
 
-                echo "[${target}] Packing files"
+                echo "[local] Packing files"
                 pack ${release}
 
                 echo "[${target}] Transferring packed files"
@@ -341,7 +341,7 @@ EOL
                 unzipQuiet=$(if [ ${verbose} -ne 1 ]; then echo "-q"; fi)
                 remoteCmd "unzip ${unzipQuiet} \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
 
-                echo "[${target}] Cleaning up packed files"
+                echo "[local] Cleaning up packed files"
                 rm "${release}.zip"
                 if [ ${verbose} -eq 1 ]; then
                     echo "rm ${release}.zip"
