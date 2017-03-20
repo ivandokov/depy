@@ -314,14 +314,16 @@ EOL
 
         # Run pre hooks
         #
+        set +e
         for hook in "${preHooks[@]}"; do
             runHook ${hook}
             if [ $? -ne 0 ]; then
-                error "[error] ${hook}"
+                error "[error][${hook}] Finished with error exit code"
                 failed=1
                 break
             fi
         done
+        set -e
 
         # Remote server work
         #
@@ -376,15 +378,17 @@ EOL
 
             # Run remote hooks
             #
+            set +e
             for hook in "${remoteHooks[@]}"; do
                 remoteCmd ${hook} ${server_release_dir}
                 if [ $? -ne 0 ]; then
-                    error "[${target}][${hook}] Finished with exit code different than 0"
+                    error "[${target}][${hook}] Finished with error exit code"
                     failed=1
                     remoteHooksFailed=1
                     break
                 fi
             done
+            set -e
         fi
 
         # Skip if any of the pre or remote hooks failed
@@ -396,25 +400,29 @@ EOL
 
         # Clean up old releases or remove failed release
         #
-        echo "[${target}] Clean up old releases or remove failed release"
         if [ ${remoteHooksFailed} -eq 0 ]; then
+            echo "[${target}] Clean up old releases"
             remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort -r | sed '1,${keepReleases}d' | xargs rm -rf --"
         else
+            echo "[${target}] Remove failed release"
             remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort | tail -n 1 | xargs rm -rf --"
         fi
 
         # Run post hooks
         #
+        set +e
         for hook in "${postHooks[@]}"; do
             runHook ${hook}
             if [ $? -ne 0 ]; then
+                error "[error][${hook}] Finished with error exit code"
                 failed=1
             fi
         done
+        set -e
 
         # Cleaning up local release package
         #
-        if [ ${incremental} -ne 1 ]; then
+        if [ ${incremental} -ne 1 ] && [ -f "${release}.zip" ]; then
             echo "[local] Cleaning up local release package"
             rm "${release}.zip"
             if [ ${verbose} -eq 1 ]; then
