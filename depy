@@ -203,11 +203,11 @@ function pack {
     zip -9 -r ${q} ${ignores[@]/#/--exclude=} --exclude=*.depy/* --exclude=*.DS_Store* "${release}.zip" .
 }
 
-readlink() {
+function readlink() {
     ls -l $1 | awk '{print $11}'
 }
 
-readlinkRecursive() {
+function readlinkRecursive() {
     local src tmp
 
     src=$(readlink $1)
@@ -222,6 +222,12 @@ readlinkRecursive() {
     done
 
     echo $src;
+}
+
+function calculateProcessTime() {
+    end=`date +%s`
+    runtime=$((end-start))
+    echo "Finished for ${runtime} seconds"
 }
 
 case "${arg}" in
@@ -301,6 +307,9 @@ EOL
             error "Server ${target} does not have unzip installed"
             exit 1
         fi
+
+        calculateProcessTime
+
         success "Done"
     ;;
 
@@ -430,6 +439,8 @@ EOL
             fi
         fi
 
+        calculateProcessTime
+
         # Announce result of the operation
         #
         echo
@@ -466,7 +477,7 @@ EOL
 
     pack)
         checkInitialization
-
+        calculateProcessTime
         pack
     ;;
 
@@ -484,7 +495,3 @@ EOL
         showHelp
     ;;
 esac
-
-end=`date +%s`
-runtime=$((end-start))
-echo "Finished for ${runtime} seconds"
