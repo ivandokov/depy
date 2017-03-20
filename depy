@@ -106,9 +106,31 @@ EOL
 
 # Check if target server argument is passed in
 #
+function checkInitialization {
+    if [ ! -f .depy/config ]; then
+        error "Depy configuration not found!"
+        error "To initialize Depy run: depy init"
+        exit 1
+    fi
+}
+
+# Check if target server argument is passed in
+#
 function requireTargetServer {
+    local host
+
+    checkInitialization
+
     if [ -z "$target" ]; then
         error "Missing server name!"
+        exit 1
+    fi
+
+    declare -A servers
+    . .depy/config
+
+    if [ -z "${servers["${target}.host"]}" ]; then
+        error "Missing configuration for server ${target}"
         exit 1
     fi
 }
@@ -262,15 +284,9 @@ EOL
     ;;
 
     setup)
-        if [ -f .depy/config ]; then
-            declare -A servers
-            . .depy/config
-        else
-            error "Depy configuration not found!"
-            error "To initialize Depy run: depy init"
-            exit 1
-        fi
         requireTargetServer
+        declare -A servers
+        . .depy/config
 
         if [ -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/releases\" ] && echo 1") ]; then
             remoteCmd "mkdir releases"
@@ -285,15 +301,9 @@ EOL
     ;;
 
     deploy)
-        if [ -f .depy/config ]; then
-            declare -A servers
-            . .depy/config
-        else
-            error "Depy configuration not found!"
-            error "To initialize Depy run: depy init"
-            exit 1
-        fi
         requireTargetServer
+        declare -A servers
+        . .depy/config
 
         failed=0
         remoteHooksFailed=0
@@ -423,28 +433,18 @@ EOL
     ;;
 
     releases)
-        if [ -f .depy/config ]; then
-            declare -A servers
-            . .depy/config
-        else
-            error "Depy configuration not found!"
-            error "To initialize Depy run: depy init"
-            exit 1
-        fi
         requireTargetServer
+        declare -A servers
+        . .depy/config
+
         remoteCmdRaw "cd ${servers["${target}.cwd"]}; ls releases"
     ;;
 
     rollback)
-        if [ -f .depy/config ]; then
-            declare -A servers
-            . .depy/config
-        else
-            error "Depy configuration not found!"
-            error "To initialize Depy run: depy init"
-            exit 1
-        fi
         requireTargetServer
+        declare -A servers
+        . .depy/config
+
         release=$3
 
         if [ ! -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/releases/${release}\" ] && echo 1") ]; then
@@ -456,14 +456,8 @@ EOL
     ;;
 
     pack)
-        if [ -f .depy/config ]; then
-            declare -A servers
-            . .depy/config
-        else
-            error "Depy configuration not found!"
-            error "To initialize Depy run: depy init"
-            exit 1
-        fi
+        checkInitialization
+
         pack
     ;;
 
