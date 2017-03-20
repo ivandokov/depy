@@ -234,17 +234,17 @@ case "${arg}" in
         mkdir -p .depy/hooks
         cat > .depy/hooks/pre <<EOL
 #!/usr/bin/env bash
-
+set -e
 echo "Pre hook"
 EOL
         cat > .depy/hooks/post <<EOL
 #!/usr/bin/env bash
-
+set -e
 echo "Post hook"
 EOL
         cat > .depy/hooks/remote <<EOL
 #!/usr/bin/env bash
-
+set -e
 echo "Remote hook"
 EOL
         cat > .depy/config <<EOL
