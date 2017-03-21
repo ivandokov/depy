@@ -505,8 +505,8 @@ EOL
             tag=$(git tag | sort -t. -k 1.2,1n -k 2,2n -k 3,3n -k 4,4n | grep -v "rc" | grep -v "alpha" | grep -v "beta" | tail -1)
         fi
 
-        git checkout ${tag}
-        success "Done"
+        git checkout ${tag} -q
+        success "Successfully switched to version ${tag}"
     ;;
 
     *)
