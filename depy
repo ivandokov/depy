@@ -506,7 +506,7 @@ EOL
         fi
 
         git checkout ${tag} -q
-        success "Successfully switched to version ${tag}"
+        success "Switched to version \"${tag}\""
     ;;
 
     *)
