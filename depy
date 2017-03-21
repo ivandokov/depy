@@ -8,11 +8,15 @@ arg=$1
 target=$2
 verbose=0
 incremental=0
+beta=0
+dev=0
 
 for argument in "$@"; do
     case "${argument}" in
         -v|--verbose) verbose=1 ;;
         -i|--incremental) incremental=1 ;;
+           --beta) beta=1 ;;
+           --dev) dev=1 ;;
     esac
 done
 
@@ -100,6 +104,12 @@ ARGUMENTS
 
     pack
         create package with the files to be deployed. This can be used for manual deployment
+
+    update [--beta|--dev]
+        updates Depy to the latest stable version. If --beta is specified the updater will download the latest beta version. If --dev version is specified the updated will download the latest development version
+
+
+    You can specify -v|--verbose flag to enable verbose mode and see detailed information about the process.
 EOL
     exit 1
 }
@@ -484,9 +494,17 @@ EOL
     update)
         self=$(readlinkRecursive "$0")
         dir=$(dirname ${self})
-        cd $dir
+        cd ${dir}
         git fetch --tags
-        tag=$(git tag | sort -V | grep -v "rc" | grep -v "alpha" | grep -v "beta" | tail -1)
+
+        if [ ${dev} -eq 1 ]; then
+            tag="master"
+        elif [ ${beta} -eq 1 ]; then
+            tag=$(git tag | sort -t. -k 1.2,1n -k 2,2n -k 3,3n -k 4,4n | tail -1)
+        else
+            tag=$(git tag | sort -t. -k 1.2,1n -k 2,2n -k 3,3n -k 4,4n | grep -v "rc" | grep -v "alpha" | grep -v "beta" | tail -1)
+        fi
+
         git checkout ${tag}
         success "Done"
     ;;

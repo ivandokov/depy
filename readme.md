@@ -49,6 +49,9 @@ ARGUMENTS
 
     pack
         create package with the files to be deployed. This can be used for manual deployment
+    
+    update [--beta|--dev]
+        updates Depy to the latest stable version. If --beta is specified the updater will download the latest beta version. If --dev version is specified the updated will download the latest development version
         
     
     You can specify -v|--verbose flag to enable verbose mode and see detailed information about the process. 
