@@ -58,7 +58,7 @@ fi
 # Validate Bash version
 #
 if (( ${BASH_VERSION%%.*} < 4 )); then
-    error "Bash 4 or higher required!"
+    error "Bash 4 or higher is required!"
     exit 1
 fi
 
