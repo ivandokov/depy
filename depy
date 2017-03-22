@@ -117,7 +117,7 @@ function requireTargetServer {
         exit 1
     fi
 
-    declare -A servers
+    declare -Ag servers
     . .depy/config
 
     if [ -z "${servers["${TARGET}.host"]}" ]; then
@@ -214,8 +214,6 @@ case "${ARG}" in
 
     setup)
         requireTargetServer
-        declare -A servers
-        . .depy/config
 
         if [ -z $(remoteCmdRaw "[ -d \"${servers["${TARGET}.cwd"]}/releases\" ] && echo 1") ]; then
             remoteCmd "mkdir releases"
@@ -238,8 +236,6 @@ case "${ARG}" in
 
     deploy)
         requireTargetServer
-        declare -A servers
-        . .depy/config
 
         failed=0
         remoteHooksFailed=0
@@ -377,16 +373,12 @@ case "${ARG}" in
 
     releases)
         requireTargetServer
-        declare -A servers
-        . .depy/config
 
         remoteCmdRaw "cd ${servers["${TARGET}.cwd"]}; ls releases"
     ;;
 
     rollback)
         requireTargetServer
-        declare -A servers
-        . .depy/config
 
         release=$3
 
