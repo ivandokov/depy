@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+servers=(
+    ["production.host"]=192.168.10.10
+    ["production.port"]=22
+    ["production.user"]=deployer
+    ["production.identity"]=~/.ssh/id_rsa
+    ["production.cwd"]=/home/deployer
+
+    ["staging.host"]=192.168.10.10
+    ["staging.port"]=22
+    ["staging.user"]=deployer
+    ["staging.identity"]=~/.ssh/id_rsa
+    ["staging.cwd"]=/home/deployer
+)
+
+preHooks=(
+    pre
+)
+
+remoteHooks=(
+    remote
+)
+
+postHooks=(
+    post
+)
+
+# Must match zip --exclude pattern
+# https://linux.die.net/man/1/zip
+ignores=(
+    *.git*
+)
+
+shared=(
+    logs
+)
+
+keepReleases=4

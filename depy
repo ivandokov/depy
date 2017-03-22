@@ -207,55 +207,8 @@ case "${ARG}" in
             exit 1
         fi
 
-        mkdir -p .depy/hooks
-        cat > .depy/hooks/pre <<EOL
-#!/usr/bin/env bash
-set -e
-echo "Pre hook"
-EOL
-        cat > .depy/hooks/post <<EOL
-#!/usr/bin/env bash
-set -e
-echo "Post hook"
-EOL
-        cat > .depy/hooks/remote <<EOL
-#!/usr/bin/env bash
-set -e
-echo "Remote hook"
-EOL
-        cat > .depy/config <<EOL
-servers=(
-    [production.host]=192.168.20.20
-    [production.port]=22
-    [production.user]=ubuntu
-    [production.identity]=~/.ssh/id_rsa
-    [production.cwd]=/home/ubuntu
-)
+        cp -R ${DEPY_DIR}/config .depy
 
-preHooks=(
-    pre
-)
-
-remoteHooks=(
-    remote
-)
-
-postHooks=(
-    post
-)
-
-# Must match zip --exclude pattern
-# https://linux.die.net/man/1/zip
-ignores=(
-    *.git*
-)
-
-shared=(
-    logs
-)
-
-keepReleases=4
-EOL
         success "Done"
     ;;
 
