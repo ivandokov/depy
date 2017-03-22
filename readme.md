@@ -68,7 +68,7 @@ ignores=(
 )
 ```
 This array holds the files and folders which will be excluded from the deploying process. They will not be uploaded to the server.  
-**Important** the supported patterns can be found in zip documentation at https://linux.die.net/man/1/zip for --exclude argument
+**Important** the supported patterns can be found in zip documentation at https://linux.die.net/man/1/zip for `--exclude` argument.
 
 ### Shared
 ```bash
@@ -105,16 +105,16 @@ Depy comes with bash autocompletion for easier usage.
 `-i|--incremental` flag will change the deployment flow to incremental. It will duplicate the latest release on the server and upload only the changes using rsync. This will decrease the deployment time for larger projects.
 
 ### Releases
-`depy releases [TARGET]` - list all existing releases on the target server
+`depy releases [TARGET]` - list all existing releases on the target server.
 
 ### Rollback
-`depy rollback [TARGET] [RELEASE]` - rollback to the specified release on the target server
+`depy rollback [TARGET] [RELEASE]` - rollback to the specified release on the target server.
 
 ### Pack
-`depy pack` - create package with the files to be deployed. This can be used for manual deployment
+`depy pack` - create package with the files to be deployed. This can be used for manual deployment.
 
 ### Update
-`depy update [--beta|--dev]` - updates Depy to the latest stable version. If --beta is specified the updater will download the latest beta version. If --dev version is specified the updated will download the latest development version
+`depy update [--beta|--dev]` - updates Depy to the latest stable version. If --beta is specified the updater will download the latest beta version. If --dev version is specified the updated will download the latest development version.
 
 ### Verbose mode
 You can specify `-v|--verbose` flag for all arguments to enable verbose mode and see detailed information about the process. 
