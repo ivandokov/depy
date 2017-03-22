@@ -223,15 +223,15 @@ function readlinkRecursive() {
     src=$(readlink $1)
 
     while true; do
-        tmp=$(readlink $src)
+        tmp=$(readlink ${src})
         if [ -z "$tmp" ]; then
             break
         else
-            src=$(readlink $tmp)
+            src=$(readlink ${tmp})
         fi
     done
 
-    echo $src;
+    echo ${src};
 }
 
 function calculateProcessTime() {
