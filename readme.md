@@ -87,13 +87,13 @@ This is the count of releases to keep on the server which can be used for rollba
 ## Usage
 Depy comes with bash autocompletion for easier usage.
 
-### Init
+### init
 `depy init` - create the required configuration files in `.depy` directory.
 
-### Setup
+### setup
 `depy setup [TARGET]` - create required folders structure on the specified server.
 
-### Deploy
+### deploy
 `depy deploy [TARGET] [-i|--incremental]`
 1) runs pre hooks locally. If any of the hooks fails (exit with status other than 0) the deployment is cancelled and marked as failed
 2) transfer files to the target server
@@ -104,16 +104,16 @@ Depy comes with bash autocompletion for easier usage.
 
 `-i|--incremental` flag will change the deployment flow to incremental. It will duplicate the latest release on the server and upload only the changes using rsync. This will decrease the deployment time for larger projects.
 
-### Releases
+### releases
 `depy releases [TARGET]` - list all existing releases on the target server.
 
-### Rollback
+### rollback
 `depy rollback [TARGET] [RELEASE]` - rollback to the specified release on the target server.
 
-### Pack
+### pack
 `depy pack` - create package with the files to be deployed. This can be used for manual deployment.
 
-### Update
+### update
 `depy update [--beta|--dev]` - updates Depy to the latest stable version. If --beta is specified the updater will download the latest beta version. If --dev version is specified the updated will download the latest development version.
 
 ### Verbose mode
