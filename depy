@@ -274,7 +274,7 @@ case "${ARG}" in
                 echo "[local] Packing files"
                 pack ${release}
 
-                echo "[${TARGET}] Transferring packed files"
+                echo "[local] Transferring packed files"
                 rsyncProgress=$(if [ ${VERBOSE} -eq 1 ]; then echo "--progress"; fi)
                 rsync --archive ${rsyncProgress} "${release}.zip" -e "ssh -p ${servers["${TARGET}.port"]} -i ${servers["${TARGET}.identity"]}" \
                     ${server_dns}:${server_releases_dir}
@@ -286,7 +286,7 @@ case "${ARG}" in
                 echo "[${TARGET}] Preparing for incremental deploy"
                 remoteCmd "cp -R ${server_releases_dir}${latestRelease} ${server_release_dir}"
 
-                echo "[${TARGET}] Transferring files"
+                echo "[local] Transferring files"
                 rsyncProgress=$(if [ ${VERBOSE} -eq 1 ]; then echo "--progress"; fi)
                 rsync --archive --delete-after ${rsyncProgress} ${ignores[@]/#/--exclude=} --exclude=.depy --exclude=.DS_Store . \
                     -e "ssh -p ${servers["${TARGET}.port"]} -i ${servers["${TARGET}.identity"]}" ${server_dns}:${server_release_dir}
