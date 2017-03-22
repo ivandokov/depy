@@ -4,19 +4,19 @@ set -e
 
 start=`date +%s`
 
-arg=$1
-target=$2
-verbose=0
-incremental=0
-beta=0
-dev=0
+ARG=$1
+TARGET=$2
+VERBOSE=0
+INCREMENTAL=0
+BETA=0
+DEV=0
 
 for argument in "$@"; do
     case "${argument}" in
-        -v|--verbose) verbose=1 ;;
-        -i|--incremental) incremental=1 ;;
-           --beta) beta=1 ;;
-           --dev) dev=1 ;;
+        -v|--verbose) VERBOSE=1 ;;
+        -i|--incremental) INCREMENTAL=1 ;;
+           --beta) BETA=1 ;;
+           --dev) DEV=1 ;;
     esac
 done
 
@@ -40,6 +40,7 @@ function announce {
 function successBig {
     announce $1 '7;32'
 }
+
 function errorBig {
     announce $1 '0;30;41'
 }
@@ -66,51 +67,31 @@ if (( ${BASH_VERSION%%.*} < 4 )); then
     exit 1
 fi
 
+function getLink() {
+    ls -l $1 | awk '{print $11}'
+}
+
+function readLinkRecursive() {
+    local src tmp
+
+    src=$(getLink $1)
+
+    while true; do
+        tmp=$(getLink ${src})
+        if [ -z "$tmp" ]; then
+            break
+        else
+            src=$(getLink ${tmp})
+        fi
+    done
+
+    echo ${src};
+}
+
+DEPY_DIR=$(dirname $(readLinkRecursive "$0"))
+
 function showHelp {
-    cat <<EOL | less
-NAME
-    depy
-
-SYNOPSIS
-    depy [ARGUMENT] [TARGET]
-
-DESCRIPTION
-    Depy is a dependency free deployment tool written in BASH. The minimum BASH version required is 4.
-    It can work with multiple servers and keep older releases just in case.
-
-ARGUMENTS
-    init
-        create the required configuration files in .depy directory. This is the only argument which does not require to specify target server.
-
-    setup [TARGET]
-        create required directories structure on the remote server.
-
-    deploy [TARGET]
-        1) runs pre hooks locally. If any of the hooks fails* the deployment is cancelled and marked as failed
-        2) transfer files to the target server
-        3) runs remote hooks. If any of the hooks fails* the deployment is cancelled and marked as failed. The failed release will be deleted
-        4) linking release to be the current / active release
-        5) clean up old releases on the target server
-        6) runs post hooks locally. If any of the hooks fails* the deployment marked as failed, but the deployment is successful and release is not deleted
-        * exit with status other than 0
-
-        -i|--incremental flag will change the deployment process. It will duplicate the latest release on the server and upload only the changes. This will decrease the deployment time
-
-    releases [TARGET]
-        list all existing releases on the target server
-
-    rollback [TARGET] [RELEASE]
-        rollback to the specified release on the target server
-
-    pack
-        create package with the files to be deployed. This can be used for manual deployment
-
-    update [--beta|--dev]
-        updates Depy to the latest stable version. If --beta is specified the updater will download the latest beta version. If --dev version is specified the updated will download the latest development version
-
-
-    You can specify -v|--verbose flag to enable verbose mode and see detailed information about the process.
-EOL
+    cat ${DEPY_DIR}/help | less
     exit 1
 }
 
@@ -131,7 +112,7 @@ function requireTargetServer {
 
     checkInitialization
 
-    if [ -z "$target" ]; then
+    if [ -z "$TARGET" ]; then
         error "Missing server name!"
         exit 1
     fi
@@ -139,8 +120,8 @@ function requireTargetServer {
     declare -A servers
     . .depy/config
 
-    if [ -z "${servers["${target}.host"]}" ]; then
-        error "Missing configuration for server ${target}"
+    if [ -z "${servers["${TARGET}.host"]}" ]; then
+        error "Missing configuration for server ${TARGET}"
         exit 1
     fi
 }
@@ -156,12 +137,12 @@ function runHook {
 # Run remote command without any prefixes or changes
 #
 function remoteCmdRaw {
-    if [ -z "${servers["${target}.host"]}" ]; then
-        error "Missing configuration for server \"${target}\""
+    if [ -z "${servers["${TARGET}.host"]}" ]; then
+        error "Missing configuration for server \"${TARGET}\""
         exit 1
     fi
 
-    ssh ${servers["${target}.user"]}@${servers["${target}.host"]} -i "${servers["${target}.identity"]}" -p ${servers["${target}.port"]} $@
+    ssh ${servers["${TARGET}.user"]}@${servers["${TARGET}.host"]} -i "${servers["${TARGET}.identity"]}" -p ${servers["${TARGET}.port"]} $@
 }
 
 # Run remote command and prefix the output with the target server name
@@ -172,9 +153,9 @@ function remoteCmd {
     local server_release_dir=$2
 
     if [ -f ".depy/hooks/$cmd" ]; then
-        (remoteCmdRaw "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${target}][${cmd}] /"; return ${PIPESTATUS[0]})
+        (remoteCmdRaw "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${TARGET}][${cmd}] /"; return ${PIPESTATUS[0]})
     else
-        (remoteCmdRaw "cd ${servers["${target}.cwd"]}; $cmd" | sed "s/^/[${target}] /"; return ${PIPESTATUS[0]})
+        (remoteCmdRaw "cd ${servers["${TARGET}.cwd"]}; $cmd" | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
     fi
 }
 
@@ -188,7 +169,7 @@ function releaseName {
 #
 function link {
     remoteCmd "rm current; ln -s releases/${1} current"
-    if [ ${verbose} -eq 1 ]; then
+    if [ ${VERBOSE} -eq 1 ]; then
         echo "rm current; ln -s releases/${1} current"
     fi
 }
@@ -202,7 +183,7 @@ function rollback {
 # Pack the local files for release
 #
 function pack {
-    local q=$(if [ ${verbose} -ne 1 ]; then echo "-q"; fi)
+    local q=$(if [ ${VERBOSE} -ne 1 ]; then echo "-q"; fi)
 
     if [ -z "$1" ]; then
         release=$(releaseName)
@@ -213,34 +194,13 @@ function pack {
     zip -9 -r ${q} ${ignores[@]/#/--exclude=} --exclude=*.depy/* --exclude=*.DS_Store* "${release}.zip" .
 }
 
-function readlink() {
-    ls -l $1 | awk '{print $11}'
-}
-
-function readlinkRecursive() {
-    local src tmp
-
-    src=$(readlink $1)
-
-    while true; do
-        tmp=$(readlink ${src})
-        if [ -z "$tmp" ]; then
-            break
-        else
-            src=$(readlink ${tmp})
-        fi
-    done
-
-    echo ${src};
-}
-
 function calculateProcessTime() {
     end=`date +%s`
     runtime=$((end-start))
     echo "Finished for ${runtime} seconds"
 }
 
-case "${arg}" in
+case "${ARG}" in
     init)
         if [ -d .depy ]; then
             error "Depy is already initialized in this directory"
@@ -304,17 +264,17 @@ EOL
         declare -A servers
         . .depy/config
 
-        if [ -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/releases\" ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -d \"${servers["${TARGET}.cwd"]}/releases\" ] && echo 1") ]; then
             remoteCmd "mkdir releases"
         fi
-        if [ -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/shared\" ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -d \"${servers["${TARGET}.cwd"]}/shared\" ] && echo 1") ]; then
             remoteCmd "mkdir shared"
         fi
-        if [ -z $(remoteCmdRaw "[ -L \"${servers["${target}.cwd"]}/current\" ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -L \"${servers["${TARGET}.cwd"]}/current\" ] && echo 1") ]; then
             remoteCmd "ln -s /dev/null current"
         fi
         if [ -z $(remoteCmdRaw "which unzip") ]; then
-            error "Server ${target} does not have unzip installed"
+            error "Server ${TARGET} does not have unzip installed"
             exit 1
         fi
 
@@ -348,46 +308,46 @@ EOL
         #
         if [ ${failed} -eq 0 ]; then
             release=$(date -u +"%Y%m%d%H%M%S")
-            cwd=${servers["${target}.cwd"]}
-            server_dns=${servers["${target}.user"]}@${servers["${target}.host"]}
-            server_releases_dir=${servers["${target}.cwd"]}/releases/
+            cwd=${servers["${TARGET}.cwd"]}
+            server_dns=${servers["${TARGET}.user"]}@${servers["${TARGET}.host"]}
+            server_releases_dir=${servers["${TARGET}.cwd"]}/releases/
             server_release_dir=${server_releases_dir}${release}
 
-            if [ ${incremental} -eq 1 ]; then
-                latestRelease=$(remoteCmdRaw "cd ${servers["${target}.cwd"]}; ls -1r releases | head -1")
+            if [ ${INCREMENTAL} -eq 1 ]; then
+                latestRelease=$(remoteCmdRaw "cd ${servers["${TARGET}.cwd"]}; ls -1r releases | head -1")
             fi
 
             if [ -z "${latestRelease}" ]; then
-                if [ ${incremental} -eq 1 ]; then
-                    echo "[${target}] No previous release found. Proceeding as full deploy"
+                if [ ${INCREMENTAL} -eq 1 ]; then
+                    echo "[${TARGET}] No previous release found. Proceeding as full deploy"
                 fi
 
                 echo "[local] Packing files"
                 pack ${release}
 
-                echo "[${target}] Transferring packed files"
-                rsyncProgress=$(if [ ${verbose} -eq 1 ]; then echo "--progress"; fi)
-                rsync --archive ${rsyncProgress} "${release}.zip" -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" \
+                echo "[${TARGET}] Transferring packed files"
+                rsyncProgress=$(if [ ${VERBOSE} -eq 1 ]; then echo "--progress"; fi)
+                rsync --archive ${rsyncProgress} "${release}.zip" -e "ssh -p ${servers["${TARGET}.port"]} -i ${servers["${TARGET}.identity"]}" \
                     ${server_dns}:${server_releases_dir}
 
-                echo "[${target}] Unpacking files"
-                unzipQuiet=$(if [ ${verbose} -ne 1 ]; then echo "-q"; fi)
+                echo "[${TARGET}] Unpacking files"
+                unzipQuiet=$(if [ ${VERBOSE} -ne 1 ]; then echo "-q"; fi)
                 remoteCmd "unzip ${unzipQuiet} \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
             else
-                echo "[${target}] Preparing for incremental deploy"
+                echo "[${TARGET}] Preparing for incremental deploy"
                 remoteCmd "cp -R ${server_releases_dir}${latestRelease} ${server_release_dir}"
 
-                echo "[${target}] Transferring files"
-                rsyncProgress=$(if [ ${verbose} -eq 1 ]; then echo "--progress"; fi)
+                echo "[${TARGET}] Transferring files"
+                rsyncProgress=$(if [ ${VERBOSE} -eq 1 ]; then echo "--progress"; fi)
                 rsync --archive --delete-after ${rsyncProgress} ${ignores[@]/#/--exclude=} --exclude=.depy --exclude=.DS_Store . \
-                    -e "ssh -p ${servers["${target}.port"]} -i ${servers["${target}.identity"]}" ${server_dns}:${server_release_dir}
+                    -e "ssh -p ${servers["${TARGET}.port"]} -i ${servers["${TARGET}.identity"]}" ${server_dns}:${server_release_dir}
             fi
 
             # Setup shared files and folders
             #
             for dir in "${shared[@]}"; do
                 if [ -d "${dir}" ] || [ -f "${dir}" ]; then
-                    if [ -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/shared/${dir}\" ] && echo 1") ]; then
+                    if [ -z $(remoteCmdRaw "[ -d \"${servers["${TARGET}.cwd"]}/shared/${dir}\" ] && echo 1") ]; then
                         remoteCmd "mv \"releases/${release}/${dir}\" \"shared/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
                     else
                         remoteCmd "rm -rf \"releases/${release}/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
@@ -401,7 +361,7 @@ EOL
             for hook in "${remoteHooks[@]}"; do
                 remoteCmd ${hook} ${server_release_dir}
                 if [ $? -ne 0 ]; then
-                    error "[${target}][${hook}] Finished with error exit code"
+                    error "[${TARGET}][${hook}] Finished with error exit code"
                     failed=1
                     remoteHooksFailed=1
                     break
@@ -413,18 +373,18 @@ EOL
         # Skip if any of the pre or remote hooks failed
         #
         if [ ${failed} -eq 0 ]; then
-            echo "[${target}] Linking release as current"
+            echo "[${TARGET}] Linking release as current"
             link "${release}"
         fi
 
         # Clean up old releases or remove failed release
         #
         if [ ${remoteHooksFailed} -eq 0 ]; then
-            echo "[${target}] Clean up old releases"
-            remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort -r | sed '1,${keepReleases}d' | xargs rm -rf --"
+            echo "[${TARGET}] Clean up old releases"
+            remoteCmd "cd ${servers["${TARGET}.cwd"]}/releases; ls | sort -r | sed '1,${keepReleases}d' | xargs rm -rf --"
         else
-            echo "[${target}] Remove failed release"
-            remoteCmd "cd ${servers["${target}.cwd"]}/releases; ls | sort | tail -n 1 | xargs rm -rf --"
+            echo "[${TARGET}] Remove failed release"
+            remoteCmd "cd ${servers["${TARGET}.cwd"]}/releases; ls | sort | tail -n 1 | xargs rm -rf --"
         fi
 
         # Run post hooks
@@ -441,10 +401,10 @@ EOL
 
         # Cleaning up local release package
         #
-        if [ ${incremental} -ne 1 ] && [ -f "${release}.zip" ]; then
+        if [ ${INCREMENTAL} -ne 1 ] && [ -f "${release}.zip" ]; then
             echo "[local] Cleaning up local release package"
             rm "${release}.zip"
-            if [ ${verbose} -eq 1 ]; then
+            if [ ${VERBOSE} -eq 1 ]; then
                 echo "rm ${release}.zip"
             fi
         fi
@@ -467,7 +427,7 @@ EOL
         declare -A servers
         . .depy/config
 
-        remoteCmdRaw "cd ${servers["${target}.cwd"]}; ls releases"
+        remoteCmdRaw "cd ${servers["${TARGET}.cwd"]}; ls releases"
     ;;
 
     rollback)
@@ -477,11 +437,11 @@ EOL
 
         release=$3
 
-        if [ ! -z $(remoteCmdRaw "[ -d \"${servers["${target}.cwd"]}/releases/${release}\" ] && echo 1") ]; then
-            echo "[${target}] Linking release ${release} as current"
+        if [ ! -z $(remoteCmdRaw "[ -d \"${servers["${TARGET}.cwd"]}/releases/${release}\" ] && echo 1") ]; then
+            echo "[${TARGET}] Linking release ${release} as current"
             link "${release}"
         else
-            error "[${target}] Release ${release} not found"
+            error "[${TARGET}] Release ${release} not found"
         fi
     ;;
 
@@ -492,14 +452,12 @@ EOL
     ;;
 
     update)
-        self=$(readlinkRecursive "$0")
-        dir=$(dirname ${self})
-        cd ${dir}
+        cd ${DEPY_DIR}
         git fetch --tags
 
-        if [ ${dev} -eq 1 ]; then
+        if [ ${DEV} -eq 1 ]; then
             tag="master"
-        elif [ ${beta} -eq 1 ]; then
+        elif [ ${BETA} -eq 1 ]; then
             tag=$(git tag | sort -t. -k 1.2,1n -k 2,2n -k 3,3n -k 4,4n | tail -1)
         else
             tag=$(git tag | sort -t. -k 1.2,1n -k 2,2n -k 3,3n -k 4,4n | grep -v "rc" | grep -v "alpha" | grep -v "beta" | tail -1)
