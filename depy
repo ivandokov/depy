@@ -243,10 +243,11 @@ case "${ARG}" in
         # Run pre hooks
         #
         set +e
+        echo "[local] Running pre hooks"
         for hook in "${preHooks[@]}"; do
             runHook ${hook}
             if [ $? -ne 0 ]; then
-                error "[error][${hook}] Finished with error exit code"
+                error "[local][${hook}] Finished with error exit code"
                 failed=1
                 break
             fi
@@ -307,6 +308,7 @@ case "${ARG}" in
             # Run remote hooks
             #
             set +e
+            echo "[${TARGET}] Running remote hooks"
             for hook in "${remoteHooks[@]}"; do
                 remoteCmd ${hook} ${server_release_dir}
                 if [ $? -ne 0 ]; then
@@ -339,10 +341,11 @@ case "${ARG}" in
         # Run post hooks
         #
         set +e
+        echo "[local] Running post hooks"
         for hook in "${postHooks[@]}"; do
             runHook ${hook}
             if [ $? -ne 0 ]; then
-                error "[error][${hook}] Finished with error exit code"
+                error "[local][${hook}] Finished with error exit code"
                 failed=1
             fi
         done
