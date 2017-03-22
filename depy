@@ -60,13 +60,6 @@ if ! which zip >/dev/null; then
     exit 1
 fi
 
-# Validate Bash version
-#
-if (( ${BASH_VERSION%%.*} < 4 )); then
-    error "Bash 4 or higher is required!"
-    exit 1
-fi
-
 function getLink() {
     ls -l $1 | awk '{print $11}'
 }
@@ -105,11 +98,9 @@ function checkInitialization {
     fi
 }
 
-# Check if target server argument is passed in
+# Load and validate configuration for target server
 #
-function requireTargetServer {
-    local host
-
+function loadConfigForServer {
     checkInitialization
 
     if [ -z "$TARGET" ]; then
@@ -117,13 +108,43 @@ function requireTargetServer {
         exit 1
     fi
 
-    declare -Ag servers
     . .depy/config
 
-    if [ -z "${servers["${TARGET}.host"]}" ]; then
-        error "Missing configuration for server ${TARGET}"
+    SERVER_HOST="${TARGET}_host"
+    if [ -z "${!SERVER_HOST}" ]; then
+        error "Missing host for server ${TARGET}"
         exit 1
     fi
+
+    SERVER_PORT="${TARGET}_port"
+    if [ -z "${!SERVER_PORT}" ]; then
+        error "Missing port for server ${TARGET}"
+        exit 1
+    fi
+
+    SERVER_USER="${TARGET}_user"
+    if [ -z "${!SERVER_USER}" ]; then
+        error "Missing user for server ${TARGET}"
+        exit 1
+    fi
+
+    SERVER_IDENTITY="${TARGET}_identity"
+    if [ -z "${!SERVER_IDENTITY}" ]; then
+        error "Missing identity file for server ${TARGET}"
+        exit 1
+    fi
+
+    SERVER_CWD="${TARGET}_cwd"
+    if [ -z "${!SERVER_CWD}" ]; then
+        error "Missing cwd for server ${TARGET}"
+        exit 1
+    fi
+
+    SERVER_HOST="${!SERVER_HOST}"
+    SERVER_PORT="${!SERVER_PORT}"
+    SERVER_USER="${!SERVER_USER}"
+    SERVER_IDENTITY="${!SERVER_IDENTITY}"
+    SERVER_CWD="${!SERVER_CWD}"
 }
 
 # Run each hook in a subprocess
@@ -137,12 +158,7 @@ function runHook {
 # Run remote command without any prefixes or changes
 #
 function remoteCmdRaw {
-    if [ -z "${servers["${TARGET}.host"]}" ]; then
-        error "Missing configuration for server \"${TARGET}\""
-        exit 1
-    fi
-
-    ssh ${servers["${TARGET}.user"]}@${servers["${TARGET}.host"]} -i "${servers["${TARGET}.identity"]}" -p ${servers["${TARGET}.port"]} $@
+    ssh ${SERVER_USER}@${SERVER_HOST} -i "${SERVER_IDENTITY}" -p ${SERVER_PORT} $@
 }
 
 # Run remote command and prefix the output with the target server name
@@ -155,7 +171,7 @@ function remoteCmd {
     if [ -f ".depy/hooks/$cmd" ]; then
         (remoteCmdRaw "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${TARGET}][${cmd}] /"; return ${PIPESTATUS[0]})
     else
-        (remoteCmdRaw "cd ${servers["${TARGET}.cwd"]}; $cmd" | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
+        (remoteCmdRaw "cd ${SERVER_CWD}; $cmd" | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
     fi
 }
 
@@ -213,15 +229,15 @@ case "${ARG}" in
     ;;
 
     setup)
-        requireTargetServer
+        loadConfigForServer
 
-        if [ -z $(remoteCmdRaw "[ -d \"${servers["${TARGET}.cwd"]}/releases\" ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -d \"${SERVER_CWD}/releases\" ] && echo 1") ]; then
             remoteCmd "mkdir releases"
         fi
-        if [ -z $(remoteCmdRaw "[ -d \"${servers["${TARGET}.cwd"]}/shared\" ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -d \"${SERVER_CWD}/shared\" ] && echo 1") ]; then
             remoteCmd "mkdir shared"
         fi
-        if [ -z $(remoteCmdRaw "[ -L \"${servers["${TARGET}.cwd"]}/current\" ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -L \"${SERVER_CWD}/current\" ] && echo 1") ]; then
             remoteCmd "ln -s /dev/null current"
         fi
         if [ -z $(remoteCmdRaw "which unzip") ]; then
@@ -235,7 +251,7 @@ case "${ARG}" in
     ;;
 
     deploy)
-        requireTargetServer
+        loadConfigForServer
 
         failed=0
         remoteHooksFailed=0
@@ -244,7 +260,7 @@ case "${ARG}" in
         #
         set +e
         echo "[local] Running pre hooks"
-        for hook in "${preHooks[@]}"; do
+        for hook in "${pre_hooks[@]}"; do
             runHook ${hook}
             if [ $? -ne 0 ]; then
                 error "[local][${hook}] Finished with error exit code"
@@ -258,13 +274,13 @@ case "${ARG}" in
         #
         if [ ${failed} -eq 0 ]; then
             release=$(date -u +"%Y%m%d%H%M%S")
-            cwd=${servers["${TARGET}.cwd"]}
-            server_dns=${servers["${TARGET}.user"]}@${servers["${TARGET}.host"]}
-            server_releases_dir=${servers["${TARGET}.cwd"]}/releases/
+            cwd=${SERVER_CWD}
+            server_dns=${SERVER_USER}@${SERVER_HOST}
+            server_releases_dir=${SERVER_CWD}/releases/
             server_release_dir=${server_releases_dir}${release}
 
             if [ ${INCREMENTAL} -eq 1 ]; then
-                latestRelease=$(remoteCmdRaw "cd ${servers["${TARGET}.cwd"]}; ls -1r releases | head -1")
+                latestRelease=$(remoteCmdRaw "cd ${SERVER_CWD}; ls -1r releases | head -1")
             fi
 
             if [ -z "${latestRelease}" ]; then
@@ -277,7 +293,7 @@ case "${ARG}" in
 
                 echo "[local] Transferring packed files"
                 rsyncProgress=$(if [ ${VERBOSE} -eq 1 ]; then echo "--progress"; fi)
-                rsync --archive ${rsyncProgress} "${release}.zip" -e "ssh -p ${servers["${TARGET}.port"]} -i ${servers["${TARGET}.identity"]}" \
+                rsync --archive ${rsyncProgress} "${release}.zip" -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" \
                     ${server_dns}:${server_releases_dir}
 
                 echo "[${TARGET}] Unpacking files"
@@ -290,14 +306,14 @@ case "${ARG}" in
                 echo "[local] Transferring files"
                 rsyncProgress=$(if [ ${VERBOSE} -eq 1 ]; then echo "--progress"; fi)
                 rsync --archive --delete-after ${rsyncProgress} ${ignores[@]/#/--exclude=} --exclude=.depy --exclude=.DS_Store . \
-                    -e "ssh -p ${servers["${TARGET}.port"]} -i ${servers["${TARGET}.identity"]}" ${server_dns}:${server_release_dir}
+                    -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" ${server_dns}:${server_release_dir}
             fi
 
             # Setup shared files and folders
             #
             for dir in "${shared[@]}"; do
                 if [ -d "${dir}" ] || [ -f "${dir}" ]; then
-                    if [ -z $(remoteCmdRaw "[ -d \"${servers["${TARGET}.cwd"]}/shared/${dir}\" ] && echo 1") ]; then
+                    if [ -z $(remoteCmdRaw "[ -d \"${SERVER_CWD}/shared/${dir}\" ] && echo 1") ]; then
                         remoteCmd "mv \"releases/${release}/${dir}\" \"shared/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
                     else
                         remoteCmd "rm -rf \"releases/${release}/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
@@ -309,7 +325,7 @@ case "${ARG}" in
             #
             set +e
             echo "[${TARGET}] Running remote hooks"
-            for hook in "${remoteHooks[@]}"; do
+            for hook in "${remote_hooks[@]}"; do
                 remoteCmd ${hook} ${server_release_dir}
                 if [ $? -ne 0 ]; then
                     error "[${TARGET}][${hook}] Finished with error exit code"
@@ -332,17 +348,17 @@ case "${ARG}" in
         #
         if [ ${remoteHooksFailed} -eq 0 ]; then
             echo "[${TARGET}] Clean up old releases"
-            remoteCmd "cd ${servers["${TARGET}.cwd"]}/releases; ls | sort -r | sed '1,${keepReleases}d' | xargs rm -rf --"
+            remoteCmd "cd ${SERVER_CWD}/releases; ls | sort -r | sed '1,${keep_releases}d' | xargs rm -rf --"
         else
             echo "[${TARGET}] Remove failed release"
-            remoteCmd "cd ${servers["${TARGET}.cwd"]}/releases; ls | sort | tail -n 1 | xargs rm -rf --"
+            remoteCmd "cd ${SERVER_CWD}/releases; ls | sort | tail -n 1 | xargs rm -rf --"
         fi
 
         # Run post hooks
         #
         set +e
         echo "[local] Running post hooks"
-        for hook in "${postHooks[@]}"; do
+        for hook in "${post_hooks[@]}"; do
             runHook ${hook}
             if [ $? -ne 0 ]; then
                 error "[local][${hook}] Finished with error exit code"
@@ -375,17 +391,17 @@ case "${ARG}" in
     ;;
 
     releases)
-        requireTargetServer
+        loadConfigForServer
 
-        remoteCmdRaw "cd ${servers["${TARGET}.cwd"]}; ls releases"
+        remoteCmdRaw "cd ${SERVER_CWD}; ls releases"
     ;;
 
     rollback)
-        requireTargetServer
+        loadConfigForServer
 
         release=$3
 
-        if [ ! -z $(remoteCmdRaw "[ -d \"${servers["${TARGET}.cwd"]}/releases/${release}\" ] && echo 1") ]; then
+        if [ ! -z $(remoteCmdRaw "[ -d \"${SERVER_CWD}/releases/${release}\" ] && echo 1") ]; then
             echo "[${TARGET}] Linking release ${release} as current"
             link "${release}"
         else

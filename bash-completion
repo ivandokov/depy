@@ -12,7 +12,7 @@ _depy()
     case $prev in
         setup|deploy|releases|rollback)
             if [ -f ./.depy/config ]; then
-                servers=$(grep '.host' ./.depy/config | sed -e 's/.*\[\(.*\).host.*/\1/')
+                servers=$(grep '_host' ./.depy/config | sed -e 's/\(.*\)_host.*/\1/')
                 COMPREPLY=( $( compgen -W "$servers" -- "$cur" ) )
             fi
             return 0

@@ -1,39 +1,58 @@
 #!/usr/bin/env bash
 
-servers=(
-    ["production.host"]=192.168.10.10
-    ["production.port"]=22
-    ["production.user"]=deployer
-    ["production.identity"]=~/.ssh/id_rsa
-    ["production.cwd"]=/home/deployer
+# SERVERS
+#
+production_host=192.168.20.20
+production_port=22
+production_user=ubuntu
+production_identity=~/.ssh/id_rsa
+production_cwd=/home/ubuntu/website
 
-    ["staging.host"]=192.168.10.10
-    ["staging.port"]=22
-    ["staging.user"]=deployer
-    ["staging.identity"]=~/.ssh/id_rsa
-    ["staging.cwd"]=/home/deployer
-)
+staging_host=192.168.20.20
+staging_port=22
+staging_user=ubuntu
+staging_identity=~/.ssh/id_rsa
+staging_cwd=/home/ubuntu/website
 
-preHooks=(
+# PRE HOOKS
+# array of bash scripts which are executed before the deployment process
+#
+pre_hooks=(
     pre
 )
 
-remoteHooks=(
+# REMOTE HOOKS
+# array of bash scripts which are executed on the server after the transfer of files
+#
+remote_hooks=(
     remote
 )
 
-postHooks=(
+# POST HOOKS
+# array of bash scripts which are executed after the deployment process
+#
+post_hooks=(
     post
 )
 
-# Must match zip --exclude pattern
-# https://linux.die.net/man/1/zip
+# IGNORES
+# array of ignored files and folders
+# the syntax must match zip --exclude patterns
+# check the documentation at https://linux.die.net/man/1/zip
+#
 ignores=(
     *.git*
+    *test*
 )
 
+# SHARED
+# array shared files and folders which are kept between releases
+#
 shared=(
     logs
 )
 
-keepReleases=4
+# KEEP RELEASES
+# the number of releases to keep on the server for rollbacks
+#
+keep_releases=4
