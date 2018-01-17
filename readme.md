@@ -69,7 +69,8 @@ ignores=(
 )
 ```
 This array holds the files and folders which will be excluded from the deploying process. They will not be uploaded to the server.  
-**Important** the supported patterns can be found in zip documentation at https://linux.die.net/man/1/zip for `--exclude` argument. The regex matching is a tricky and we suggest using `depy pack-list` to see which files will be packed for the release.
+**Important** - the supported patterns can be found in zip documentation at https://linux.die.net/man/1/zip for `--exclude` argument. The regex matching is a tricky and we suggest using `depy pack-list` to see which files will be packed for the release.
+**Important** - the incremental update is using `rsync` instead of `zip` and the ignored files and directories are using the same list, but the two tools could interpret the regex patterns differently.
 
 ### Shared
 ```bash
