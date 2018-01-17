@@ -66,7 +66,6 @@ They are executed locally in the project directory after the actual deployment p
 ```bash
 ignores=(
     "*.git*"
-    "*tests*"
 )
 ```
 This array holds the files and folders which will be excluded from the deploying process. They will not be uploaded to the server.  

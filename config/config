@@ -43,7 +43,6 @@ post_hooks=(
 #
 ignores=(
     "*.git*"
-    "*test*"
 )
 
 # SHARED
