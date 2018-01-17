@@ -39,10 +39,11 @@ post_hooks=(
 # array of ignored files and folders
 # the syntax must match zip --exclude patterns
 # check the documentation at https://linux.die.net/man/1/zip
+# To test the ignores use: depy pack-list
 #
 ignores=(
-    *.git*
-    *test*
+    "*.git*"
+    "*test*"
 )
 
 # SHARED

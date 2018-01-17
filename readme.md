@@ -63,12 +63,12 @@ They are executed locally in the project directory after the actual deployment p
 ### Ignores
 ```bash
 ignores=(
-    *.git*
-    *test*
+    "*.git*"
+    "*tests*"
 )
 ```
 This array holds the files and folders which will be excluded from the deploying process. They will not be uploaded to the server.  
-**Important** the supported patterns can be found in zip documentation at https://linux.die.net/man/1/zip for `--exclude` argument.
+**Important** the supported patterns can be found in zip documentation at https://linux.die.net/man/1/zip for `--exclude` argument. The regex matching is a tricky and we suggest using `depy pack-list` to see which files will be packed for the release.
 
 ### Shared
 ```bash
@@ -112,6 +112,9 @@ Depy comes with bash autocompletion for easier usage.
 
 ### pack
 `depy pack` - create package with the files to be deployed. This can be used for manual deployment.
+
+### pack-list
+`depy pack-list` - list all files and directories which will be part of the package for deployment. This can be used for testing ignore directives.
 
 ### update
 `depy update [--beta|--dev]` - updates Depy to the latest stable version. If --beta is specified the updater will download the latest beta version. If --dev version is specified the updated will download the latest development version.

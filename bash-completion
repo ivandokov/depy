@@ -19,7 +19,7 @@ _depy()
             ;;
     esac
 
-    COMPREPLY=( $( compgen -W 'init setup deploy releases rollback pack update' -- "$cur" ) )
+    COMPREPLY=( $( compgen -W 'init setup deploy releases rollback pack pack-list update' -- "$cur" ) )
     return 0
 } &&
 complete -F _depy depy

@@ -35,6 +35,9 @@ ARGUMENTS
     pack
         create package with the files to be deployed. This can be used for manual deployment
 
+    pack-list
+        list all files and directories which will be part of the package for deployment. This can be used for testing ignore directives
+
     update [--beta|--dev]
         updates Depy to the latest stable version. If --beta is specified the updater will download the latest beta version. If --dev version is specified the updated will download the latest development version
 

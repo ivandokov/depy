@@ -10,6 +10,29 @@ VERBOSE=0
 INCREMENTAL=0
 BETA=0
 DEV=0
+INTERNAL_IGNORE=(
+    *.depy*
+    *.idea*
+    *.git*
+    *.DS_Store*
+    *Thumbs.db*
+    *ehthumbs.db*
+    *ehthumbs_vista.db*
+    *.stackdump*
+    *Desktop.ini*
+    *desktop.ini*
+    *$RECYCLE.BIN/*
+    *.cab*
+    *.msi*
+    *.msm*
+    *.msp*
+    *.lnk*
+    */~*
+    *.fuse_hidden*
+    *.directory*
+    *.Trash-*
+    *.nfs*
+)
 
 for argument in "$@"; do
     case "${argument}" in
@@ -98,17 +121,23 @@ function checkInitialization {
     fi
 }
 
+# Load configurations
+#
+function loadConfig {
+    checkInitialization
+
+    . .depy/config
+}
+
 # Load and validate configuration for target server
 #
 function loadConfigForServer {
-    checkInitialization
-
     if [ -z "$TARGET" ]; then
         error "Missing server name!"
         exit 1
     fi
 
-    . .depy/config
+    loadConfig
 
     SERVER_HOST="${TARGET}_host"
     if [ -z "${!SERVER_HOST}" ]; then
@@ -207,7 +236,15 @@ function pack {
         release=${1}
     fi
 
-    zip -9 -r ${q} ${ignores[@]/#/--exclude=} --exclude=*.depy/* --exclude=*.DS_Store* "${release}.zip" .
+    if [ ${VERBOSE} -eq 1 ]; then set -x; fi
+    zip -9 -r -y ${q} ${ignores[@]/#/--exclude=} ${INTERNAL_IGNORE[@]/#/--exclude=} "${release}.zip" .
+    set +x
+}
+
+function packFiles {
+    if [ ${VERBOSE} -eq 1 ]; then set -x; fi
+    zip -9 -r -y -sf ${ignores[@]/#/--exclude=} ${INTERNAL_IGNORE[@]/#/--exclude=} tmp.zip .
+    set +x
 }
 
 function calculateProcessTime() {
@@ -305,7 +342,7 @@ case "${ARG}" in
 
                 echo "[local] Transferring files"
                 rsyncProgress=$(if [ ${VERBOSE} -eq 1 ]; then echo "--progress"; fi)
-                rsync --archive --delete-after ${rsyncProgress} ${ignores[@]/#/--exclude=} --exclude=.depy --exclude=.DS_Store . \
+                rsync --archive --delete-after ${rsyncProgress} ${ignores[@]/#/--exclude=} ${INTERNAL_IGNORE[@]/#/--exclude=} . \
                     -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" ${server_dns}:${server_release_dir}
             fi
 
@@ -371,10 +408,9 @@ case "${ARG}" in
         #
         if [ ${INCREMENTAL} -ne 1 ] && [ -f "${release}.zip" ]; then
             echo "[local] Cleaning up local release package"
+            if [ ${VERBOSE} -eq 1 ]; then set -x; fi
             rm "${release}.zip"
-            if [ ${VERBOSE} -eq 1 ]; then
-                echo "rm ${release}.zip"
-            fi
+            set +x
         fi
 
         calculateProcessTime
@@ -410,9 +446,14 @@ case "${ARG}" in
     ;;
 
     pack)
-        checkInitialization
-        calculateProcessTime
+        loadConfig
         pack
+        calculateProcessTime
+    ;;
+
+    pack-list)
+        loadConfig
+        packFiles
     ;;
 
     update)
