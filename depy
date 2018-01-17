@@ -181,7 +181,7 @@ function loadConfigForServer {
 # Return hook exit status
 #
 function runHook {
-    (. ".depy/hooks/$1" | sed "s/^/[local][$1] /"; return ${PIPESTATUS[0]})
+    (. ".depy/hooks/$1" "$2" ${INCREMENTAL} | sed "s/^/[local][$1] /"; return ${PIPESTATUS[0]})
 }
 
 # Run remote command without any prefixes or changes
@@ -198,7 +198,7 @@ function remoteCmd {
     local server_release_dir=$2
 
     if [ -f ".depy/hooks/$cmd" ]; then
-        (remoteCmdRaw "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" | sed "s/^/[${TARGET}][${cmd}] /"; return ${PIPESTATUS[0]})
+        (remoteCmdRaw "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" ${INCREMENTAL} | sed "s/^/[${TARGET}][${cmd}] /"; return ${PIPESTATUS[0]})
     else
         (remoteCmdRaw "cd ${SERVER_CWD}; $cmd" | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
     fi
@@ -299,7 +299,7 @@ case "${ARG}" in
         set +e
         echo "[local] Running pre hooks"
         for hook in "${pre_hooks[@]}"; do
-            runHook ${hook} ${release} ${INCREMENTAL}
+            runHook ${hook} ${release}
             if [ $? -ne 0 ]; then
                 error "[local][${hook}] Finished with error exit code"
                 failed=1
@@ -363,7 +363,7 @@ case "${ARG}" in
             set +e
             echo "[${TARGET}] Running remote hooks"
             for hook in "${remote_hooks[@]}"; do
-                remoteCmd ${hook} ${server_release_dir} ${INCREMENTAL}
+                remoteCmd ${hook} ${server_release_dir}
                 if [ $? -ne 0 ]; then
                     error "[${TARGET}][${hook}] Finished with error exit code"
                     failed=1
@@ -396,7 +396,7 @@ case "${ARG}" in
         set +e
         echo "[local] Running post hooks"
         for hook in "${post_hooks[@]}"; do
-            runHook ${hook} ${release} ${INCREMENTAL}
+            runHook ${hook} ${release}
             if [ $? -ne 0 ]; then
                 error "[local][${hook}] Finished with error exit code"
                 failed=1
