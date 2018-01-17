@@ -52,6 +52,8 @@ remote_hooks=(
 ``` 
 They are executed on the server in the release folder before the linking of the release as current. These hooks are used to install dependencies, make builds and clean up work on the server. If any of the hooks exit with code different than 0 (error) the deployment process will be canceled and marked as failed.
 
+Each hook receives one parameter which is the directory name of the release so if you want to run code on the release you have to `cd "$1"`.
+
 #### Post hooks
 ```bash
 post_hooks=(
