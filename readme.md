@@ -44,6 +44,10 @@ pre_hooks=(
 They are executed locally in the project directory before the actual deployment process. They are great place to make sure that you are not deploying broken code to the server. You can use them to execute tests, builds, etc.
 If any of the hooks exit with code different than 0 (error) the deployment process will be canceled and marked as failed.
 
+These hooks receives the following arguments:
+* `$1` - the release name
+* `$2` - 0 for full release, 1 for incremental
+
 #### Remote hooks 
 ```bash
 remote_hooks=(
@@ -54,6 +58,10 @@ They are executed on the server in the release folder before the linking of the 
 
 Each hook receives one parameter which is the directory name of the release so if you want to run code on the release you have to `cd "$1"`.
 
+These hooks receives the following arguments:
+* `$1` - path to the release directory. Can be used to `cd "$1"` and run code in the release directory.
+* `$2` - 0 for full release, 1 for incremental
+
 #### Post hooks
 ```bash
 post_hooks=(
@@ -61,6 +69,11 @@ post_hooks=(
 )
 ```
 They are executed locally in the project directory after the actual deployment process. These hooks are used for clean up work, announcing deploy status (for example in a Slack channel), etc. If any of the hooks exit with code different than 0 (error) the deployment process will be marked as failed, but cannot be canceled because the remote stuff are already done.
+
+These hooks receives the following arguments:
+* `$1` - the release name
+* `$2` - 0 for full release, 1 for incremental
+
 
 ### Ignores
 ```bash

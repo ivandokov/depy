@@ -292,13 +292,14 @@ case "${ARG}" in
 
         failed=0
         remoteHooksFailed=0
+        release=$(date -u +"%Y%m%d%H%M%S")
 
         # Run pre hooks
         #
         set +e
         echo "[local] Running pre hooks"
         for hook in "${pre_hooks[@]}"; do
-            runHook ${hook}
+            runHook ${hook} ${release} ${INCREMENTAL}
             if [ $? -ne 0 ]; then
                 error "[local][${hook}] Finished with error exit code"
                 failed=1
@@ -310,7 +311,6 @@ case "${ARG}" in
         # Remote server work
         #
         if [ ${failed} -eq 0 ]; then
-            release=$(date -u +"%Y%m%d%H%M%S")
             cwd=${SERVER_CWD}
             server_dns=${SERVER_USER}@${SERVER_HOST}
             server_releases_dir=${SERVER_CWD}/releases/
@@ -363,7 +363,7 @@ case "${ARG}" in
             set +e
             echo "[${TARGET}] Running remote hooks"
             for hook in "${remote_hooks[@]}"; do
-                remoteCmd ${hook} ${server_release_dir}
+                remoteCmd ${hook} ${server_release_dir} ${INCREMENTAL}
                 if [ $? -ne 0 ]; then
                     error "[${TARGET}][${hook}] Finished with error exit code"
                     failed=1
@@ -396,7 +396,7 @@ case "${ARG}" in
         set +e
         echo "[local] Running post hooks"
         for hook in "${post_hooks[@]}"; do
-            runHook ${hook}
+            runHook ${hook} ${release} ${INCREMENTAL}
             if [ $? -ne 0 ]; then
                 error "[local][${hook}] Finished with error exit code"
                 failed=1
