@@ -13,27 +13,14 @@ INCREMENTAL=0
 BETA=0
 DEV=0
 INTERNAL_IGNORE=(
-    *depy*
-    *.idea*
-    *.git*
-    *.DS_Store*
-    *Thumbs.db*
-    *ehthumbs.db*
-    *ehthumbs_vista.db*
-    *.stackdump*
-    *Desktop.ini*
-    *desktop.ini*
-    *$RECYCLE.BIN/*
-    *.cab*
-    *.msi*
-    *.msm*
-    *.msp*
-    *.lnk*
-    */~*
-    *.fuse_hidden*
-    *.directory*
-    *.Trash-*
-    *.nfs*
+    "*depy/*"
+    "*.idea*"
+    "*.git*"
+    "*.DS_Store*"
+    "*.fuse_hidden*"
+    "*.directory*"
+    "*.Trash-*"
+    "*.nfs*"
 )
 
 for argument in "$@"; do
