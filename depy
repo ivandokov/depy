@@ -4,6 +4,8 @@ set -e
 
 start=`date +%s`
 
+PROJECT_DEPY_DIR=.depy
+
 ARG=$1
 TARGET=$2
 VERBOSE=0
@@ -114,7 +116,7 @@ function showHelp {
 # Check if target server argument is passed in
 #
 function checkInitialization {
-    if [ ! -f .depy/config ]; then
+    if [ ! -f ${PROJECT_DEPY_DIR}/config ]; then
         error "Depy configuration not found!"
         error "To initialize Depy run: depy init"
         exit 1
@@ -126,7 +128,7 @@ function checkInitialization {
 function loadConfig {
     checkInitialization
 
-    . .depy/config
+    . ${PROJECT_DEPY_DIR}/config
 }
 
 # Load and validate configuration for target server
@@ -181,7 +183,7 @@ function loadConfigForServer {
 # Return hook exit status
 #
 function runHook {
-    (. ".depy/hooks/$1" "$2" ${INCREMENTAL} | sed "s/^/[local][$1] /"; return ${PIPESTATUS[0]})
+    (. "${PROJECT_DEPY_DIR}/hooks/$1" "$2" ${INCREMENTAL} | sed "s/^/[local][$1] /"; return ${PIPESTATUS[0]})
 }
 
 # Run remote command without any prefixes or changes
@@ -197,8 +199,8 @@ function remoteCmd {
     local cmd=$1
     local server_release_dir=$2
 
-    if [ -f ".depy/hooks/$cmd" ]; then
-        (remoteCmdRaw "bash -s" < ".depy/hooks/${cmd}" "${server_release_dir}" ${INCREMENTAL} | sed "s/^/[${TARGET}][${cmd}] /"; return ${PIPESTATUS[0]})
+    if [ -f "${PROJECT_DEPY_DIR}/hooks/$cmd" ]; then
+        (remoteCmdRaw "bash -s" < "${PROJECT_DEPY_DIR}/hooks/${cmd}" "${server_release_dir}" ${INCREMENTAL} | sed "s/^/[${TARGET}][${cmd}] /"; return ${PIPESTATUS[0]})
     else
         (remoteCmdRaw "cd ${SERVER_CWD}; $cmd" | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
     fi
@@ -225,20 +227,27 @@ function rollback {
     link "$1"
 }
 
+# Shortcut for zip command
+#
+function zipCommand {
+    local q=$(if [ ${VERBOSE} -ne 1 ]; then echo "-q"; fi)
+
+    if [ ${VERBOSE} -eq 1 ]; then set -x; fi
+    zip -9 -r -y ${q} ${ignores[@]/#/--exclude=} ${INTERNAL_IGNORE[@]/#/--exclude=} "$@"
+    set +x
+}
+
 # Pack the local files for release
 #
 function pack {
-    local q=$(if [ ${VERBOSE} -ne 1 ]; then echo "-q"; fi)
+    if [ -z "$1" ]; then release=$(releaseName); else release=${1}; fi
+    if [ -z "$2" ]; then path=''; else path="${2%/}/"; fi
 
-    if [ -z "$1" ]; then
-        release=$(releaseName)
+    if [ -z "$3" ]; then
+        zipCommand "${path}${release}.zip" .
     else
-        release=${1}
+        zipCommand "${path}${3}.zip" . -DF --out "${path}${release}-i.zip"
     fi
-
-    if [ ${VERBOSE} -eq 1 ]; then set -x; fi
-    zip -9 -r -y ${q} ${ignores[@]/#/--exclude=} ${INTERNAL_IGNORE[@]/#/--exclude=} "${release}.zip" .
-    set +x
 }
 
 function packFiles {
@@ -255,12 +264,12 @@ function calculateProcessTime() {
 
 case "${ARG}" in
     init)
-        if [ -d .depy ]; then
+        if [ -d ${PROJECT_DEPY_DIR} ]; then
             error "Depy is already initialized in this directory"
             exit 1
         fi
 
-        cp -R ${DEPY_DIR}/config .depy
+        cp -R ${DEPY_DIR}/config ${PROJECT_DEPY_DIR}
 
         success "Done"
     ;;
@@ -268,6 +277,15 @@ case "${ARG}" in
     setup)
         loadConfigForServer
 
+        if [ -z $(remoteCmdRaw "which unzip") ]; then
+            error "Server ${TARGET} does not have unzip installed"
+            exit 1
+        fi
+
+        if [ ! -z $(remoteCmdRaw "[ ! -w \"${SERVER_CWD}\" ] && echo 1") ]; then
+            error "User ${SERVER_USER} does not have write access to directory ${SERVER_CWD}"
+            exit 1
+        fi
         if [ -z $(remoteCmdRaw "[ -d \"${SERVER_CWD}/releases\" ] && echo 1") ]; then
             remoteCmd "mkdir releases"
         fi
@@ -276,10 +294,6 @@ case "${ARG}" in
         fi
         if [ -z $(remoteCmdRaw "[ -L \"${SERVER_CWD}/current\" ] && echo 1") ]; then
             remoteCmd "ln -s /dev/null current"
-        fi
-        if [ -z $(remoteCmdRaw "which unzip") ]; then
-            error "Server ${TARGET} does not have unzip installed"
-            exit 1
         fi
 
         calculateProcessTime
@@ -292,7 +306,16 @@ case "${ARG}" in
 
         failed=0
         remoteHooksFailed=0
-        release=$(date -u +"%Y%m%d%H%M%S")
+        release=$(releaseName)
+
+        rsyncProgress=$(if [ ${VERBOSE} -eq 1 ]; then echo "--progress"; fi)
+        unzipQuiet=$(if [ ${VERBOSE} -ne 1 ]; then echo "-q"; fi)
+
+        # Make sure tmp directory exists
+        #
+        if [ ! -d ${PROJECT_DEPY_DIR}/tmp ]; then
+            mkdir ${PROJECT_DEPY_DIR}/tmp
+        fi
 
         # Run pre hooks
         #
@@ -317,7 +340,7 @@ case "${ARG}" in
             server_release_dir=${server_releases_dir}${release}
 
             if [ ${INCREMENTAL} -eq 1 ]; then
-                latestRelease=$(remoteCmdRaw "cd ${SERVER_CWD}; ls -1r releases | head -1")
+                latestRelease=$(ls -1r ${PROJECT_DEPY_DIR}/tmp | head -1 | sed -E 's/(.*)\.zip/\1/')
             fi
 
             if [ -z "${latestRelease}" ]; then
@@ -326,24 +349,39 @@ case "${ARG}" in
                 fi
 
                 echo "[local] Packing files"
-                pack ${release}
+                pack ${release} ${PROJECT_DEPY_DIR}/tmp
 
                 echo "[local] Transferring packed files"
-                rsyncProgress=$(if [ ${VERBOSE} -eq 1 ]; then echo "--progress"; fi)
-                rsync --archive ${rsyncProgress} "${release}.zip" -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" \
+                rsync --archive ${rsyncProgress} "${PROJECT_DEPY_DIR}/tmp/${release}.zip" -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" \
                     ${server_dns}:${server_releases_dir}
 
                 echo "[${TARGET}] Unpacking files"
-                unzipQuiet=$(if [ ${VERBOSE} -ne 1 ]; then echo "-q"; fi)
                 remoteCmd "unzip ${unzipQuiet} \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
             else
+                echo "[local] Packing files for incremental deploy"
+                pack ${release} ${PROJECT_DEPY_DIR}/tmp ${latestRelease}
+
+                if ! zipinfo "${PROJECT_DEPY_DIR}/tmp/${release}-i.zip" > /dev/null; then
+                    echo "[local] Incremental release pack is empty (no changes)"
+                    rm "${PROJECT_DEPY_DIR}/tmp/${release}-i.zip"
+                    exit 0
+                fi
+
+                # Make full release pack of the current files
+                # so it can be compated with the next incremental release
+                #
+                pack ${release} ${PROJECT_DEPY_DIR}/tmp
+
                 echo "[${TARGET}] Preparing for incremental deploy"
                 remoteCmd "cp -R ${server_releases_dir}${latestRelease} ${server_release_dir}"
 
-                echo "[local] Transferring files"
-                rsyncProgress=$(if [ ${VERBOSE} -eq 1 ]; then echo "--progress"; fi)
-                rsync --archive --delete-after ${rsyncProgress} ${ignores[@]/#/--exclude=} ${INTERNAL_IGNORE[@]/#/--exclude=} . \
-                    -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" ${server_dns}:${server_release_dir}
+                echo "[local] Transferring packed files"
+                rsync --archive ${rsyncProgress} "${PROJECT_DEPY_DIR}/tmp/${release}-i.zip" -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" \
+                    ${server_dns}:${server_releases_dir}
+                rm "${PROJECT_DEPY_DIR}/tmp/${release}-i.zip"
+
+                echo "[${TARGET}] Unpacking files"
+                remoteCmd "unzip -o ${unzipQuiet} \"releases/${release}-i.zip\" -d \"releases/${release}\"; rm \"releases/${release}-i.zip\""
             fi
 
             # Setup shared files and folders
@@ -404,14 +442,13 @@ case "${ARG}" in
         done
         set -e
 
-        # Cleaning up local release package
+        # Cleaning up local release packages
         #
-        if [ ${INCREMENTAL} -ne 1 ] && [ -f "${release}.zip" ]; then
-            echo "[local] Cleaning up local release package"
-            if [ ${VERBOSE} -eq 1 ]; then set -x; fi
-            rm "${release}.zip"
-            set +x
-        fi
+        echo "[local] Cleaning up local release packages"
+        if [ ${VERBOSE} -eq 1 ]; then set -x; fi
+        cd ${PROJECT_DEPY_DIR}/tmp
+        ls | sort -r | tail -n +2 | xargs rm -rf --
+        set +x
 
         calculateProcessTime
 
