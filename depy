@@ -4,7 +4,7 @@ set -e
 
 start=`date +%s`
 
-PROJECT_DEPY_DIR=.depy
+PROJECT_DEPY_DIR=depy
 
 ARG=$1
 TARGET=$2
@@ -13,7 +13,7 @@ INCREMENTAL=0
 BETA=0
 DEV=0
 INTERNAL_IGNORE=(
-    *.depy*
+    *depy*
     *.idea*
     *.git*
     *.DS_Store*

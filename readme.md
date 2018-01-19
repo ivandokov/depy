@@ -1,7 +1,7 @@
 # Depy
 ### Simple and nearly dependency free deployment tool.  
 Written in `bash` the tool does not have any major dependencies. Everything you need to have installed locally is:
- * `git` (*download the project and for updates*)
+ * `git` (*download Depy and for updates*)
  * `ssh` (*communicate with the server*)
  * `rsync` (*transfer files*)
  * `zip` (*pack releases*)
@@ -19,8 +19,8 @@ cd depy
 ```
 
 ## Configuration
-The initialization creates `.depy` directory. There you will find all configuration files and hooks.
-The file `.depy/config` is the main file. There you describe your server details, hooks, ignored files and folders and others. The file is a simple bash file with variables.
+The initialization creates `depy` directory. There you will find all configuration files and hooks.
+The file `depy/config` is the main file. There you describe your server details, hooks, ignored files and folders and others. The file is a simple bash file with variables.
 
 ### Servers
 To define a server connection you should have a similar block like the one below. The server name is the first part of the variables. For example `production_host` or `staging_host`. All variables are required for a server.
@@ -33,7 +33,7 @@ production_cwd=/home/ubuntu/website
 ```
 
 ### Hooks
-The hooks are bash scripts which are executed in a specific moment of the deployment process and are located in `.depy/hooks/`.  
+The hooks are bash scripts which are executed in a specific moment of the deployment process and are located in `depy/hooks/`.
 
 #### Pre hooks
 ```bash 
@@ -102,7 +102,7 @@ This is the count of releases to keep on the server which can be used for rollba
 Depy comes with bash autocompletion for easier usage.
 
 ### init
-`depy init` - create the required configuration files in `.depy` directory.
+`depy init` - create the required configuration files in `depy` directory.
 
 ### setup
 `depy setup [TARGET]` - create required folders structure on the specified server.
