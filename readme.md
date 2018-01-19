@@ -134,4 +134,7 @@ Depy comes with bash autocompletion for easier usage.
 `depy update [--beta|--dev]` - updates Depy to the latest stable version. If --beta is specified the updater will download the latest beta version. If --dev version is specified the updated will download the latest development version.
 
 ### Verbose mode
-You can specify `-v|--verbose` flag for all arguments to enable verbose mode and see detailed information about the process. 
+You can specify `-v|--verbose` flag for all arguments to enable verbose mode and see detailed information about the process.
+
+## Development
+If you want to help us make Depy better you can use the development demo project from our [depy-dev](https://github.com/ivandokov/depy-dev) repository. There you will find Vagrantfile used to launch testing virtual machine where you can deploy the demo-project.
