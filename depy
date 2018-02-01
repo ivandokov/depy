@@ -303,7 +303,6 @@ case "${ARG}" in
         if [ ! -d ${PROJECT_DEPY_DIR}/tmp ]; then
             mkdir ${PROJECT_DEPY_DIR}/tmp
             echo '*' > ${PROJECT_DEPY_DIR}/tmp/.gitignore
-            echo '!.gitignore' >> ${PROJECT_DEPY_DIR}/tmp/.gitignore
         fi
 
         # Run pre hooks
