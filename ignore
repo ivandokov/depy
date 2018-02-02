@@ -1,0 +1,8 @@
+.depy*
+.idea/*
+*.git*
+*.DS_Store*
+*.fuse_hidden*
+*.directory*
+*.Trash-*
+*.nfs*

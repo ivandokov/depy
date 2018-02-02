@@ -4,28 +4,17 @@ set -e
 
 start=`date +%s`
 
-PROJECT_DEPY_DIR=depy
-
 ARG=$1
 TARGET=$2
 VERBOSE=0
 INCREMENTAL=0
 BETA=0
 DEV=0
-INTERNAL_IGNORE=(
-    "*depy/*"
-    "*.idea*"
-    "*.git*"
-    "*.DS_Store*"
-    "*.fuse_hidden*"
-    "*.directory*"
-    "*.Trash-*"
-    "*.nfs*"
-)
 
 for argument in "$@"; do
     case "${argument}" in
         -v|--verbose) VERBOSE=1 ;;
+        -vv|--vverbose) VERBOSE=2 ;;
         -i|--incremental) INCREMENTAL=1 ;;
            --beta) BETA=1 ;;
            --dev) DEV=1 ;;
@@ -59,15 +48,15 @@ function errorBig {
 
 # Check for dependencies
 #
-if ! which rsync >/dev/null; then
+if ! which rsync > /dev/null; then
     error "Cannot find rsync binary"
     exit 1
 fi
-if ! which ssh >/dev/null; then
+if ! which ssh > /dev/null; then
     error "Cannot find ssh binary"
     exit 1
 fi
-if ! which zip >/dev/null; then
+if ! which zip > /dev/null; then
     error "Cannot find zip binary"
     exit 1
 fi
@@ -103,7 +92,7 @@ function showHelp {
 # Check if target server argument is passed in
 #
 function checkInitialization {
-    if [ ! -f ${PROJECT_DEPY_DIR}/config ]; then
+    if [ ! -f .depy ]; then
         error "Depy configuration not found!"
         error "To initialize Depy run: depy init"
         exit 1
@@ -114,8 +103,7 @@ function checkInitialization {
 #
 function loadConfig {
     checkInitialization
-
-    . ${PROJECT_DEPY_DIR}/config
+    . .depy
 }
 
 # Load and validate configuration for target server
@@ -129,34 +117,19 @@ function loadConfigForServer {
     loadConfig
 
     SERVER_HOST="${TARGET}_host"
-    if [ -z "${!SERVER_HOST}" ]; then
-        error "Missing host for server ${TARGET}"
-        exit 1
-    fi
+    [ -z "${!SERVER_HOST}" ] && error "Missing host for server ${TARGET}" && exit 1
 
     SERVER_PORT="${TARGET}_port"
-    if [ -z "${!SERVER_PORT}" ]; then
-        error "Missing port for server ${TARGET}"
-        exit 1
-    fi
+    [ -z "${!SERVER_PORT}" ] && error "Missing port for server ${TARGET}" && exit 1
 
     SERVER_USER="${TARGET}_user"
-    if [ -z "${!SERVER_USER}" ]; then
-        error "Missing user for server ${TARGET}"
-        exit 1
-    fi
+    [ -z "${!SERVER_USER}" ] && error "Missing user for server ${TARGET}" && exit 1
 
     SERVER_IDENTITY="${TARGET}_identity"
-    if [ -z "${!SERVER_IDENTITY}" ]; then
-        error "Missing identity file for server ${TARGET}"
-        exit 1
-    fi
+    [ -z "${!SERVER_IDENTITY}" ] && error "Missing identity file for server ${TARGET}" && exit 1
 
     SERVER_CWD="${TARGET}_cwd"
-    if [ -z "${!SERVER_CWD}" ]; then
-        error "Missing cwd for server ${TARGET}"
-        exit 1
-    fi
+    [ -z "${!SERVER_CWD}" ] && error "Missing cwd for server ${TARGET}" && exit 1
 
     SERVER_HOST="${!SERVER_HOST}"
     SERVER_PORT="${!SERVER_PORT}"
@@ -170,12 +143,20 @@ function loadConfigForServer {
 # Return hook exit status
 #
 function runHook {
-    (. "${PROJECT_DEPY_DIR}/hooks/$1" "$2" ${INCREMENTAL} | sed "s/^/[local][$1] /"; return ${PIPESTATUS[0]})
+    if [ ${VERBOSE} -gt 0 ]; then
+        echo "+ . .depy-$1.sh "$2" ${INCREMENTAL}"
+    fi
+
+    (. .depy-$1.sh "$2" ${INCREMENTAL} | sed "s/^/[local] /"; return ${PIPESTATUS[0]})
 }
 
 # Run remote command without any prefixes or changes
 #
 function remoteCmdRaw {
+    if [ ${VERBOSE} -gt 0 ]; then
+        echo "+ $@";
+    fi
+
     ssh ${SERVER_USER}@${SERVER_HOST} -i "${SERVER_IDENTITY}" -p ${SERVER_PORT} $@
 }
 
@@ -186,8 +167,8 @@ function remoteCmd {
     local cmd=$1
     local server_release_dir=$2
 
-    if [ -f "${PROJECT_DEPY_DIR}/hooks/$cmd" ]; then
-        (remoteCmdRaw "bash -s" < "${PROJECT_DEPY_DIR}/hooks/${cmd}" "${server_release_dir}" ${INCREMENTAL} | sed "s/^/[${TARGET}][${cmd}] /"; return ${PIPESTATUS[0]})
+    if [ "$cmd" = "remote" ]; then
+        (remoteCmdRaw "cd ${server_release_dir}; bash -s" < ".depy-remote.sh" ${INCREMENTAL} | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
     else
         (remoteCmdRaw "cd ${SERVER_CWD}; $cmd" | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
     fi
@@ -203,9 +184,6 @@ function releaseName {
 #
 function link {
     remoteCmd "rm current; ln -s releases/${1} current"
-    if [ ${VERBOSE} -eq 1 ]; then
-        echo "rm current; ln -s releases/${1} current"
-    fi
 }
 
 # Create symbolic link from the specified release to current
@@ -217,11 +195,12 @@ function rollback {
 # Shortcut for zip command
 #
 function zipCommand {
-    local q=$(if [ ${VERBOSE} -ne 1 ]; then echo "-q"; fi)
+    local quiet=$(if [ ${VERBOSE} -gt 1 ]; then echo "--verbose"; else echo "--quiet"; fi)
+    local ignore=$([ -f .depyignore ] && echo "--exclude @.depyignore")
 
-    if [ ${VERBOSE} -eq 1 ]; then set -x; fi
-    zip -9 -r -y ${q} ${ignores[@]/#/--exclude=} ${INTERNAL_IGNORE[@]/#/--exclude=} "$@"
-    set +x
+    [ ${VERBOSE} -gt 0 ] && set -x
+    zip -9 --recurse-paths --symlinks ${quiet} "$@" --exclude @"${DEPY_DIR}/ignore" ${ignore}
+    { set +x; } 2>/dev/null
 }
 
 # Pack the local files for release
@@ -231,16 +210,10 @@ function pack {
     if [ -z "$2" ]; then path=''; else path="${2%/}/"; fi
 
     if [ -z "$3" ]; then
-        zipCommand "${path}${release}.zip" .
+        zipCommand "${path}${release}.zip" ./
     else
-        zipCommand "${path}${3}.zip" . -DF --out "${path}${release}-i.zip"
+        zipCommand "${path}${3}.zip" ./ -DF --out "${path}${release}-i.zip"
     fi
-}
-
-function packFiles {
-    if [ ${VERBOSE} -eq 1 ]; then set -x; fi
-    zip -9 -r -y -sf ${ignores[@]/#/--exclude=} ${INTERNAL_IGNORE[@]/#/--exclude=} tmp.zip .
-    set +x
 }
 
 function calculateProcessTime() {
@@ -251,12 +224,13 @@ function calculateProcessTime() {
 
 case "${ARG}" in
     init)
-        if [ -d ${PROJECT_DEPY_DIR} ]; then
-            error "Depy is already initialized in this directory"
-            exit 1
-        fi
+        [ -f .depy} ] && error "Depy is already initialized in this directory" && exit 1
 
-        cp -R ${DEPY_DIR}/config ${PROJECT_DEPY_DIR}
+        cp ${DEPY_DIR}/.depy .
+        cp ${DEPY_DIR}/.depy-pre.sh .
+        cp ${DEPY_DIR}/.depy-remote.sh .
+        cp ${DEPY_DIR}/.depy-post.sh .
+        cp ${DEPY_DIR}/.depyignore .
 
         success "Done"
     ;;
@@ -291,32 +265,35 @@ case "${ARG}" in
     deploy)
         loadConfigForServer
 
+        if [ -z $(remoteCmdRaw "[ -w \"${SERVER_CWD}\" ] && [ -d \"${SERVER_CWD}/releases\" ] && [ -d \"${SERVER_CWD}/shared\" ] && [ -L \"${SERVER_CWD}/current\" ] && echo 1") ]; then
+            error "Server ${TARGET} is not prepared for deployment. Try: depy setup ${TARGET}"
+            exit 1
+        fi
+
         failed=0
         remoteHooksFailed=0
         release=$(releaseName)
 
-        rsyncProgress=$(if [ ${VERBOSE} -eq 1 ]; then echo "--progress"; fi)
-        unzipQuiet=$(if [ ${VERBOSE} -ne 1 ]; then echo "-q"; fi)
+        rsyncProgress=$(if [ ${VERBOSE} -gt 0 ]; then echo "--progress"; fi)
+        unzipQuiet=$(if [ ${VERBOSE} -lt 2 ]; then echo "-q"; fi)
 
         # Make sure tmp directory exists
         #
-        if [ ! -d ${PROJECT_DEPY_DIR}/tmp ]; then
-            mkdir ${PROJECT_DEPY_DIR}/tmp
-            echo '*' > ${PROJECT_DEPY_DIR}/tmp/.gitignore
+        if [ ! -d .depytmp ]; then
+            mkdir .depytmp
+            echo '*' > .depytmp/.gitignore
         fi
 
         # Run pre hooks
         #
         set +e
-        echo "[local] Running pre hooks"
-        for hook in "${pre_hooks[@]}"; do
-            runHook ${hook} ${release}
-            if [ $? -ne 0 ]; then
-                error "[local][${hook}] Finished with error exit code"
-                failed=1
-                break
-            fi
-        done
+        echo "[local] Running pre hook"
+        runHook "pre" ${release}
+        if [ $? -ne 0 ]; then
+            error "[local] Finished with error exit code"
+            failed=1
+            break
+        fi
         set -e
 
         # Remote server work
@@ -328,45 +305,41 @@ case "${ARG}" in
             server_release_dir=${server_releases_dir}${release}
 
             if [ ${INCREMENTAL} -eq 1 ]; then
-                latestRelease=$(ls -1r ${PROJECT_DEPY_DIR}/tmp | head -1 | sed -E 's/(.*)\.zip/\1/')
+                latestRelease=$(ls -1r .depytmp | head -1 | sed -E 's/(.*)\.zip/\1/')
             fi
 
             if [ -z "${latestRelease}" ]; then
-                if [ ${INCREMENTAL} -eq 1 ]; then
-                    echo "[${TARGET}] No previous release found. Proceeding as full deploy"
-                fi
+                [ ${INCREMENTAL} -eq 1 ] && echo "[${TARGET}] No previous release found. Proceeding as full deploy"
 
                 echo "[local] Packing files"
-                pack ${release} ${PROJECT_DEPY_DIR}/tmp
+                pack ${release} .depytmp
 
                 echo "[local] Transferring packed files"
-                rsync --archive ${rsyncProgress} "${PROJECT_DEPY_DIR}/tmp/${release}.zip" -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" \
-                    ${server_dns}:${server_releases_dir}
+                rsync --archive ${rsyncProgress} .depytmp/${release}.zip -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" ${server_dns}:${server_releases_dir}
 
                 echo "[${TARGET}] Unpacking files"
                 remoteCmd "unzip ${unzipQuiet} \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
             else
                 echo "[local] Packing files for incremental deploy"
-                pack ${release} ${PROJECT_DEPY_DIR}/tmp ${latestRelease}
+                pack ${release} .depytmp ${latestRelease}
 
-                if ! zipinfo "${PROJECT_DEPY_DIR}/tmp/${release}-i.zip" > /dev/null; then
+                if ! zipinfo .depytmp/${release}-i.zip > /dev/null; then
                     echo "[local] Incremental release pack is empty (no changes)"
-                    rm "${PROJECT_DEPY_DIR}/tmp/${release}-i.zip"
+                    rm .depytmp/${release}-i.zip
                     exit 0
                 fi
 
                 # Make full release pack of the current files
                 # so it can be compated with the next incremental release
                 #
-                pack ${release} ${PROJECT_DEPY_DIR}/tmp
+                pack ${release} .depytmp
 
                 echo "[${TARGET}] Preparing for incremental deploy"
                 remoteCmd "cp -R ${server_releases_dir}${latestRelease} ${server_release_dir}"
 
                 echo "[local] Transferring packed files"
-                rsync --archive ${rsyncProgress} "${PROJECT_DEPY_DIR}/tmp/${release}-i.zip" -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" \
-                    ${server_dns}:${server_releases_dir}
-                rm "${PROJECT_DEPY_DIR}/tmp/${release}-i.zip"
+                rsync --archive ${rsyncProgress} .depytmp/${release}-i.zip -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" ${server_dns}:${server_releases_dir}
+                rm .depytmp/${release}-i.zip
 
                 echo "[${TARGET}] Unpacking files"
                 remoteCmd "unzip -o ${unzipQuiet} \"releases/${release}-i.zip\" -d \"releases/${release}\"; rm \"releases/${release}-i.zip\""
@@ -387,16 +360,13 @@ case "${ARG}" in
             # Run remote hooks
             #
             set +e
-            echo "[${TARGET}] Running remote hooks"
-            for hook in "${remote_hooks[@]}"; do
-                remoteCmd ${hook} ${server_release_dir}
-                if [ $? -ne 0 ]; then
-                    error "[${TARGET}][${hook}] Finished with error exit code"
-                    failed=1
-                    remoteHooksFailed=1
-                    break
-                fi
-            done
+            echo "[${TARGET}] Running remote hook"
+            remoteCmd "remote" ${server_release_dir}
+            if [ $? -ne 0 ]; then
+                error "[${TARGET}] Finished with error exit code"
+                failed=1
+                remoteHooksFailed=1
+            fi
             set -e
         fi
 
@@ -411,32 +381,30 @@ case "${ARG}" in
         #
         if [ ${remoteHooksFailed} -eq 0 ]; then
             echo "[${TARGET}] Clean up old releases"
-            remoteCmd "cd ${SERVER_CWD}/releases; ls | sort -r | sed '1,${keep_releases}d' | xargs rm -rf --"
+            remoteCmd "cd releases; ls | sort -r | sed '1,${keep_releases}d' | xargs rm -rf --"
         else
             echo "[${TARGET}] Remove failed release"
-            remoteCmd "cd ${SERVER_CWD}/releases; ls | sort | tail -n 1 | xargs rm -rf --"
+            remoteCmd "cd releases; ls | sort | tail -n 1 | xargs rm -rf --"
         fi
 
         # Run post hooks
         #
         set +e
-        echo "[local] Running post hooks"
-        for hook in "${post_hooks[@]}"; do
-            runHook ${hook} ${release}
-            if [ $? -ne 0 ]; then
-                error "[local][${hook}] Finished with error exit code"
-                failed=1
-            fi
-        done
+        echo "[local] Running post hook"
+        runHook "post" ${release}
+        if [ $? -ne 0 ]; then
+            error "[local] Finished with error exit code"
+            failed=1
+        fi
         set -e
 
         # Cleaning up local release packages
         #
         echo "[local] Cleaning up local release packages"
-        if [ ${VERBOSE} -eq 1 ]; then set -x; fi
-        cd ${PROJECT_DEPY_DIR}/tmp
+        [ ${VERBOSE} -gt 1 ] && set -x
+        cd .depytmp
         ls | sort -r | tail -n +2 | xargs rm -rf --
-        set +x
+        { set +x; } 2>/dev/null
 
         calculateProcessTime
 
@@ -478,7 +446,8 @@ case "${ARG}" in
 
     pack-list)
         loadConfig
-        packFiles
+        VERBOSE=2
+        zipCommand -sf tmp.zip ./
     ;;
 
     update)

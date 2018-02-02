@@ -2,17 +2,14 @@
 set -e
 echo "Remote hook"
 
-# $1 is path to the release directory
-# $2 is 0 for full release and 1 for incremental
+# $1 is 0 for full release and 1 for incremental
 
-cd "$1"
-
-if [ $2 -eq 0 ]; then
+if [ $1 -eq 0 ]; then
     # Run code for full release
     echo "Full release hook"
 fi
 
-if [ $2 -eq 1 ]; then
+if [ $1 -eq 1 ]; then
     # Run code for incremental release
     echo "Incremental release hook"
 fi

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# List of shared files and folders which are kept between releases
+shared=(
+    logs
+)
+
+# The number of releases to keep on the server for rollbacks
+keep_releases=4
+
+# SERVERS
+production_host=192.168.20.20
+production_port=22
+production_user=ubuntu
+production_identity=~/.ssh/id_rsa
+production_cwd=/home/ubuntu/website
