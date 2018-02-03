@@ -31,6 +31,12 @@ production_identity=~/.ssh/id_rsa
 production_cwd=/home/ubuntu/website
 ```
 
+### Deploy target
+Specify the directory which you want to deploy. By default it is the current directory. In case you need to deploy a specific directory, for example if you are using Angular and you have to deploy the `dist` directory only.
+```bash
+deploy_target=./
+```
+
 ### Shared
 ```bash
 shared=(

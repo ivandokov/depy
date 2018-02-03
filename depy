@@ -104,6 +104,9 @@ function checkInitialization {
 function loadConfig {
     checkInitialization
     . .depy
+
+    [ ! -d "${deploy_target}" ] && error "Missing deploy target -> ${deploy_target}" && exit 1
+    DEPLOY_DIR="${deploy_target}"
 }
 
 # Load and validate configuration for target server
@@ -210,9 +213,9 @@ function pack {
     if [ -z "$2" ]; then path=''; else path="${2%/}/"; fi
 
     if [ -z "$3" ]; then
-        zipCommand "${path}${release}.zip" ./
+        zipCommand "${path}${release}.zip" "${DEPLOY_DIR}"
     else
-        zipCommand "${path}${3}.zip" ./ -DF --out "${path}${release}-i.zip"
+        zipCommand "${path}${3}.zip" "${DEPLOY_DIR}" -DF --out "${path}${release}-i.zip"
     fi
 }
 
@@ -453,7 +456,7 @@ case "${ARG}" in
     pack-list)
         loadConfig
         VERBOSE=2
-        zipCommand -sf tmp.zip ./
+        zipCommand -sf tmp.zip "${DEPLOY_DIR}"
     ;;
 
     update)

@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Deployment target directory
+deploy_target=./
+
 # List of shared files and folders which are kept between releases
 shared=(
     logs
