@@ -19,7 +19,7 @@ cd depy
 ```
 
 ## Configuration
-The initialization multiple files in the current directory. The main configuration file is `.depy`. There you define your server details and others. The file is a simple bash file with variables.
+The initialization creates multiple files in the current directory. The main configuration and **the only mandatory file** is `.depy`. There you define your server details and others. The file is a simple bash file with variables.
 
 ### Servers
 To define a server connection you should have a similar block like the one below. The server name is the first part of the variables. For example `production_host` or `staging_host`. All variables are required for a server.
@@ -53,7 +53,7 @@ The hooks are bash scripts which are executed in a specific moment of the deploy
 ```bash 
 .depy-pre.sh
 ```
-This script is executed locally in the project directory before the actual deployment process. It is a great place to make sure that you are not deploying broken code to the server. You can use it to execute tests, builds, etc.
+This is an **optional** script that is executed locally in the project directory before the actual deployment process. It is a great place to make sure that you are not deploying broken code to the server. You can use it to execute tests, builds, etc.
 If the hook exit with code different than 0 (error) the deployment process will be canceled and marked as failed.
 
 These hook receives the following arguments:
@@ -64,7 +64,7 @@ These hook receives the following arguments:
 ```bash
 .depy-remote.sh
 ``` 
-This script is executed on the server in the new release folder before the linking of the release as current. This hook is used to install dependencies, make builds and for clean up work on the server. If the hook exit with code different than 0 (error) the deployment process will be canceled and marked as failed.
+This is an **optional** script that is executed on the server in the new release folder before the linking of the release as current. This hook is used to install dependencies, make builds and for clean up work on the server. If the hook exit with code different than 0 (error) the deployment process will be canceled and marked as failed.
 
 The hook receives the following arguments:
 * `$1` - 0 for full release, 1 for incremental
@@ -73,7 +73,7 @@ The hook receives the following arguments:
 ```bash
 .depy-post.sh
 ```
-This script is executed locally in the project directory after the actual deployment process. This hook is used for clean up work, announcing deploy status (for example in a Slack channel), etc. If the hook exit with code different than 0 (error) the deployment process will be marked as failed, but cannot be canceled because the remote stuff are already done.
+This is an **optional** script that is executed locally in the project directory after the actual deployment process. This hook is used for clean up work, announcing deploy status (for example in a Slack channel), etc. If the hook exit with code different than 0 (error) the deployment process will be marked as failed, but cannot be canceled because the remote stuff are already done.
 
 The hook receives the following arguments:
 * `$1` - the release name
@@ -84,7 +84,7 @@ The hook receives the following arguments:
 ```bash
 .depyignore
 ```
-This file holds list of files and folders which will be excluded from the deploying process. They will not be uploaded to the server.
+This is an optional file that holds list of files and folders which will be excluded from the deploying process. They will not be uploaded to the server.
 **Important** - the supported patterns can be found in zip documentation at https://linux.die.net/man/1/zip for `--exclude` argument. The regex matching is a tricky and we suggest using `depy pack-list` to see which files will be packed for the release.
 
 ## Usage

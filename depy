@@ -284,17 +284,19 @@ case "${ARG}" in
             echo '*' > .depytmp/.gitignore
         fi
 
-        # Run pre hooks
+        # Run pre hook
         #
-        set +e
-        echo "[local] Running pre hook"
-        runHook "pre" ${release}
-        if [ $? -ne 0 ]; then
-            error "[local] Finished with error exit code"
-            failed=1
-            break
+        if [ -f .depy-pre.sh ]; then
+            set +e
+            echo "[local] Running pre hook"
+            runHook "pre" ${release}
+            if [ $? -ne 0 ]; then
+                error "[local] Finished with error exit code"
+                failed=1
+                break
+            fi
+            set -e
         fi
-        set -e
 
         # Remote server work
         #
@@ -357,17 +359,19 @@ case "${ARG}" in
                 fi
             done
 
-            # Run remote hooks
+            # Run remote hook
             #
-            set +e
-            echo "[${TARGET}] Running remote hook"
-            remoteCmd "remote" ${server_release_dir}
-            if [ $? -ne 0 ]; then
-                error "[${TARGET}] Finished with error exit code"
-                failed=1
-                remoteHooksFailed=1
+            if [ -f .depy-remote.sh ]; then
+                set +e
+                echo "[${TARGET}] Running remote hook"
+                remoteCmd "remote" ${server_release_dir}
+                if [ $? -ne 0 ]; then
+                    error "[${TARGET}] Finished with error exit code"
+                    failed=1
+                    remoteHooksFailed=1
+                fi
+                set -e
             fi
-            set -e
         fi
 
         # Skip if any of the pre or remote hooks failed
@@ -387,16 +391,18 @@ case "${ARG}" in
             remoteCmd "cd releases; ls | sort | tail -n 1 | xargs rm -rf --"
         fi
 
-        # Run post hooks
+        # Run post hook
         #
-        set +e
-        echo "[local] Running post hook"
-        runHook "post" ${release}
-        if [ $? -ne 0 ]; then
-            error "[local] Finished with error exit code"
-            failed=1
+        if [ -f .depy-post.sh ]; then
+            set +e
+            echo "[local] Running post hook"
+            runHook "post" ${release}
+            if [ $? -ne 0 ]; then
+                error "[local] Finished with error exit code"
+                failed=1
+            fi
+            set -e
         fi
-        set -e
 
         # Cleaning up local release packages
         #
