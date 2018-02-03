@@ -27,8 +27,8 @@ To define a server connection you should have a similar block like the one below
 production_host=192.168.20.20
 production_port=22
 production_user=ubuntu
-production_identity=~/.ssh/id_rsa
-production_cwd=/home/ubuntu/website
+production_key=~/.ssh/id_rsa
+production_dir=/home/ubuntu/website
 ```
 
 ### Deploy target

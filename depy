@@ -128,17 +128,17 @@ function loadConfigForServer {
     SERVER_USER="${TARGET}_user"
     [ -z "${!SERVER_USER}" ] && error "Missing user for server ${TARGET}" && exit 1
 
-    SERVER_IDENTITY="${TARGET}_identity"
-    [ -z "${!SERVER_IDENTITY}" ] && error "Missing identity file for server ${TARGET}" && exit 1
+    SERVER_KEY="${TARGET}_key"
+    [ -z "${!SERVER_KEY}" ] && error "Missing key for server ${TARGET}" && exit 1
 
-    SERVER_CWD="${TARGET}_cwd"
-    [ -z "${!SERVER_CWD}" ] && error "Missing cwd for server ${TARGET}" && exit 1
+    SERVER_DIR="${TARGET}_dir"
+    [ -z "${!SERVER_DIR}" ] && error "Missing directory for server ${TARGET}" && exit 1
 
     SERVER_HOST="${!SERVER_HOST}"
     SERVER_PORT="${!SERVER_PORT}"
     SERVER_USER="${!SERVER_USER}"
-    SERVER_IDENTITY="${!SERVER_IDENTITY}"
-    SERVER_CWD="${!SERVER_CWD}"
+    SERVER_KEY="${!SERVER_KEY}"
+    SERVER_DIR="${!SERVER_DIR}"
 }
 
 # Run each hook in a subprocess
@@ -160,7 +160,7 @@ function remoteCmdRaw {
         echo "+ $@";
     fi
 
-    ssh ${SERVER_USER}@${SERVER_HOST} -i "${SERVER_IDENTITY}" -p ${SERVER_PORT} $@
+    ssh ${SERVER_USER}@${SERVER_HOST} -i "${SERVER_KEY}" -p ${SERVER_PORT} $@
 }
 
 # Run remote command and prefix the output with the target server name
@@ -173,7 +173,7 @@ function remoteCmd {
     if [ "$cmd" = "remote" ]; then
         (remoteCmdRaw "cd ${server_release_dir}; bash -s" < ".depy-remote.sh" ${INCREMENTAL} | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
     else
-        (remoteCmdRaw "cd ${SERVER_CWD}; $cmd" | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
+        (remoteCmdRaw "cd ${SERVER_DIR}; $cmd" | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
     fi
 }
 
@@ -246,17 +246,17 @@ case "${ARG}" in
             exit 1
         fi
 
-        if [ ! -z $(remoteCmdRaw "[ ! -w \"${SERVER_CWD}\" ] && echo 1") ]; then
-            error "User ${SERVER_USER} does not have write access to directory ${SERVER_CWD}"
+        if [ ! -z $(remoteCmdRaw "[ ! -w \"${SERVER_DIR}\" ] && echo 1") ]; then
+            error "User ${SERVER_USER} does not have write access to directory ${SERVER_DIR}"
             exit 1
         fi
-        if [ -z $(remoteCmdRaw "[ -d \"${SERVER_CWD}/releases\" ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -d \"${SERVER_DIR}/releases\" ] && echo 1") ]; then
             remoteCmd "mkdir releases"
         fi
-        if [ -z $(remoteCmdRaw "[ -d \"${SERVER_CWD}/shared\" ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -d \"${SERVER_DIR}/shared\" ] && echo 1") ]; then
             remoteCmd "mkdir shared"
         fi
-        if [ -z $(remoteCmdRaw "[ -L \"${SERVER_CWD}/current\" ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -L \"${SERVER_DIR}/current\" ] && echo 1") ]; then
             remoteCmd "ln -s /dev/null current"
         fi
 
@@ -268,7 +268,7 @@ case "${ARG}" in
     deploy)
         loadConfigForServer
 
-        if [ -z $(remoteCmdRaw "[ -w \"${SERVER_CWD}\" ] && [ -d \"${SERVER_CWD}/releases\" ] && [ -d \"${SERVER_CWD}/shared\" ] && [ -L \"${SERVER_CWD}/current\" ] && echo 1") ]; then
+        if [ -z $(remoteCmdRaw "[ -w \"${SERVER_DIR}\" ] && [ -d \"${SERVER_DIR}/releases\" ] && [ -d \"${SERVER_DIR}/shared\" ] && [ -L \"${SERVER_DIR}/current\" ] && echo 1") ]; then
             error "Server ${TARGET} is not prepared for deployment. Try: depy setup ${TARGET}"
             exit 1
         fi
@@ -304,9 +304,9 @@ case "${ARG}" in
         # Remote server work
         #
         if [ ${failed} -eq 0 ]; then
-            cwd=${SERVER_CWD}
+            cwd=${SERVER_DIR}
             server_dns=${SERVER_USER}@${SERVER_HOST}
-            server_releases_dir=${SERVER_CWD}/releases/
+            server_releases_dir=${SERVER_DIR}/releases/
             server_release_dir=${server_releases_dir}${release}
 
             if [ ${INCREMENTAL} -eq 1 ]; then
@@ -320,7 +320,7 @@ case "${ARG}" in
                 pack ${release} .depytmp
 
                 echo "[local] Transferring packed files"
-                rsync --archive ${rsyncProgress} .depytmp/${release}.zip -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" ${server_dns}:${server_releases_dir}
+                rsync --archive ${rsyncProgress} .depytmp/${release}.zip -e "ssh -p ${SERVER_PORT} -i ${SERVER_KEY}" ${server_dns}:${server_releases_dir}
 
                 echo "[${TARGET}] Unpacking files"
                 remoteCmd "unzip ${unzipQuiet} \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
@@ -343,7 +343,7 @@ case "${ARG}" in
                 remoteCmd "cp -R ${server_releases_dir}${latestRelease} ${server_release_dir}"
 
                 echo "[local] Transferring packed files"
-                rsync --archive ${rsyncProgress} .depytmp/${release}-i.zip -e "ssh -p ${SERVER_PORT} -i ${SERVER_IDENTITY}" ${server_dns}:${server_releases_dir}
+                rsync --archive ${rsyncProgress} .depytmp/${release}-i.zip -e "ssh -p ${SERVER_PORT} -i ${SERVER_KEY}" ${server_dns}:${server_releases_dir}
                 rm .depytmp/${release}-i.zip
 
                 echo "[${TARGET}] Unpacking files"
@@ -354,7 +354,7 @@ case "${ARG}" in
             #
             for dir in "${shared[@]}"; do
                 if [ -d "${dir}" ] || [ -f "${dir}" ]; then
-                    if [ -z $(remoteCmdRaw "[ -d \"${SERVER_CWD}/shared/${dir}\" ] && echo 1") ]; then
+                    if [ -z $(remoteCmdRaw "[ -d \"${SERVER_DIR}/shared/${dir}\" ] && echo 1") ]; then
                         remoteCmd "mv \"releases/${release}/${dir}\" \"shared/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
                     else
                         remoteCmd "rm -rf \"releases/${release}/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
@@ -431,7 +431,7 @@ case "${ARG}" in
     releases)
         loadConfigForServer
 
-        remoteCmdRaw "cd ${SERVER_CWD}; ls releases"
+        remoteCmdRaw "cd ${SERVER_DIR}; ls releases"
     ;;
 
     rollback)
@@ -439,7 +439,7 @@ case "${ARG}" in
 
         release=$3
 
-        if [ ! -z $(remoteCmdRaw "[ -d \"${SERVER_CWD}/releases/${release}\" ] && echo 1") ]; then
+        if [ ! -z $(remoteCmdRaw "[ -d \"${SERVER_DIR}/releases/${release}\" ] && echo 1") ]; then
             echo "[${TARGET}] Linking release ${release} as current"
             link "${release}"
         else

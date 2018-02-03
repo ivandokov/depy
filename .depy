@@ -15,5 +15,5 @@ keep_releases=4
 production_host=192.168.20.20
 production_port=22
 production_user=ubuntu
-production_identity=~/.ssh/id_rsa
+production_key=~/.ssh/id_rsa
 production_cwd=/home/ubuntu/website
