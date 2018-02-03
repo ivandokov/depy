@@ -19,7 +19,7 @@ cd depy
 ```
 
 ## Configuration
-The initialization creates multiple files in the current directory. The main configuration and **the only mandatory file** is `.depy`. There you define your server details and others. The file is a simple bash file with variables.
+The initialization creates multiple files in the current directory. The main configuration and **only mandatory file** is `.depy`. There you define your server connection details and other deployment configurations.
 
 ### Servers
 To define a server connection you should have a similar block like the one below. The server name is the first part of the variables. For example `production_host` or `staging_host`. All variables are required for a server.
@@ -37,6 +37,12 @@ Specify the directory which you want to deploy. By default it is the current dir
 deploy_target=./
 ```
 
+### Keep releases
+```bash
+keep_releases=4
+```
+This is the count of releases to keep on the server which can be used for rollback.
+
 ### Shared
 ```bash
 shared=(
@@ -45,12 +51,6 @@ shared=(
 ```
 This array holds the files and folders which will be shared between all releases. After the first release the shared files and folders will be moved to `shared` directory on the server and symlinks will be created for each one to the release directories. All other releases will **remove these files and folders** and will use symlinks to the `shared` directory.
 **Note**: Currently there is a limitation. The shared files and folders must be a top level. Nested ones are not working properly.
-
-### Keep releases
-```bash
-keep_releases=4
-```
-This is the count of releases to keep on the server which can be used for rollback.
 
 ### Hooks
 The hooks are bash scripts which are executed in a specific moment of the deployment process and are with specific names.

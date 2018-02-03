@@ -103,7 +103,12 @@ function checkInitialization {
 #
 function loadConfig {
     checkInitialization
-    . .depy
+
+    # Parse all variables except shared array
+    source <(cat .depy | grep -v 'shared.*(.*)' | sed '/shared.*(/,/)/d' | sed 's/ *= */=/g')
+
+    # Parse shared array
+    shared=$(cat .depy | grep -v 'shared.*(.*)' | sed -n "/shared.*(/,/)/p" | grep -v 'shared.*(' | grep -v ')' | sed '/^$/d' | sed -e 's/^[ \t]*//')
 
     [ ! -d "${deploy_target}" ] && error "Missing deploy target -> ${deploy_target}" && exit 1
     DEPLOY_DIR="${deploy_target}"
@@ -352,7 +357,7 @@ case "${ARG}" in
 
             # Setup shared files and folders
             #
-            for dir in "${shared[@]}"; do
+            while read -r dir; do
                 if [ -d "${dir}" ] || [ -f "${dir}" ]; then
                     if [ -z $(remoteCmdRaw "[ -d \"${SERVER_DIR}/shared/${dir}\" ] && echo 1") ]; then
                         remoteCmd "mv \"releases/${release}/${dir}\" \"shared/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
@@ -360,7 +365,7 @@ case "${ARG}" in
                         remoteCmd "rm -rf \"releases/${release}/${dir}\"; ln -s \"../../shared/${dir}\" \"releases/${release}/${dir}\""
                     fi
                 fi
-            done
+            done <<< "$shared"
 
             # Run remote hook
             #
