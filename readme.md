@@ -104,12 +104,12 @@ Depy comes with bash autocompletion for easier usage.
 
 ### deploy
 `depy deploy [TARGET] [-i|--incremental]`
-1) runs pre hooks locally. If any of the hooks fails (exit with status other than 0) the deployment is cancelled and marked as failed
+1) runs pre hook locally. If the hook fails (exit with status other than 0) the deployment is cancelled and marked as failed
 2) transfer files to the target server
-3) runs remote hooks. If any of the hooks fails (exit with status other than 0) the deployment is cancelled and marked as failed. The failed release will be deleted
+3) runs remote hook. If the hook fails (exit with status other than 0) the deployment is cancelled and marked as failed. The failed release will be deleted
 4) linking release to be the current / active release
 5) clean up old releases on the target server
-6) runs post hooks locally. If any of the hooks fails* the deployment marked as failed, but the deployment is successful and release is not deleted
+6) runs post hook locally. If the hook fails* the deployment marked as failed, but the deployment is successful and release is not deleted
 
 `-i|--incremental` flag will change the deployment flow to incremental. It will duplicate the latest release on the server and upload only the changes using rsync. This will decrease the deployment time for larger projects.
 
