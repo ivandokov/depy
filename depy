@@ -466,6 +466,13 @@ case "${ARG}" in
 
         release=$3
 
+        if [ -z "${release}" ]; then
+            release=$(remoteCmdRaw "cd releases; ls | sort | tail -n 2 | head -n 1")
+            if [ -z "${release}" ]; then
+                error "[${TARGET}] No previous release found"
+            fi
+        fi
+
         if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + [ -d \"${SERVER_DIR}/releases/${release}\" ] && echo 1"; fi
         if [ ! -z $(remoteCmdRaw "[ -d \"${SERVER_DIR}/releases/${release}\" ] && echo 1") ]; then
             echo "[${TARGET}] Linking release ${release} as current"
