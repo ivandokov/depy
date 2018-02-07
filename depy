@@ -161,7 +161,7 @@ function runHook {
 # Run remote command without any prefixes or changes
 #
 function remoteCmdRaw {
-    ssh ${SERVER_USER}@${SERVER_HOST} -i "${SERVER_KEY}" -p ${SERVER_PORT} $@
+    ssh ${SERVER_USER}@${SERVER_HOST} -i "${SERVER_KEY}" -p ${SERVER_PORT} -n $@
 }
 
 # Run remote command and prefix the output with the target server name
@@ -370,6 +370,7 @@ case "${ARG}" in
 
             # Setup shared files and folders
             #
+            echo "[${TARGET}] Setting up shared files"
             while read -r shared; do
                 if [ -d "${shared}" ] || [ -f "${shared}" ]; then
                     if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + [ -e \"${SERVER_DIR}/shared/${shared}\" ] && echo 1"; fi
