@@ -1,6 +1,6 @@
 # Depy
 ### Simple and nearly dependency free deployment tool.  
-Written in `bash` the tool does not have any major dependencies. Everything you need to have installed locally is:
+Written in `bash`* the tool does not have any major dependencies. Everything you need to have installed locally is:
  * `git` (*download Depy and for updates*)
  * `ssh` (*communicate with the server*)
  * `rsync` (*transfer files*)
@@ -9,12 +9,15 @@ Written in `bash` the tool does not have any major dependencies. Everything you 
 On the server you need to have:
 * `unzip` (unpack releases)
 
+
+***\* Bash version 4.\* is required. Version 3 is not currently supported.***
+
 These are basic tools which you probably have installed already on your system.
 
 ## Installation
  ```bash
-git clone https://github.com/ivandokov/depy.git
-cd depy
+git clone https://github.com/ivandokov/depy.git /opt/depy
+cd /opt/depy
 ./install
 ```
 
