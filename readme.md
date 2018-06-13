@@ -68,6 +68,7 @@ If the hook exit with code different than 0 (error) the deployment process will 
 These hook receives the following arguments:
 * `$1` - the release name
 * `$2` - 0 for full release, 1 for incremental
+* `$3` - 0 for successful deploy, anything else for failed
 
 #### Remote hook
 ```bash
@@ -87,7 +88,7 @@ This is an **optional** script that is executed locally in the project directory
 The hook receives the following arguments:
 * `$1` - the release name
 * `$2` - 0 for full release, 1 for incremental
-
+* `$3` - 0 for successful deploy, anything else for failed
 
 ### Ignores
 ```bash

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -e
-echo "Remote hook"
 
 # $1 is 0 for full release and 1 for incremental
 
