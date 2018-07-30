@@ -69,6 +69,7 @@ These hook receives the following arguments:
 * `$1` - the release name
 * `$2` - 0 for full release, 1 for incremental
 * `$3` - 0 for successful deploy, anything else for failed
+* `$4` - target server name
 
 #### Remote hook
 ```bash
@@ -78,6 +79,7 @@ This is an **optional** script that is executed on the server in the new release
 
 The hook receives the following arguments:
 * `$1` - 0 for full release, 1 for incremental
+* `$2` - target server name
 
 #### Post hook
 ```bash
@@ -89,6 +91,7 @@ The hook receives the following arguments:
 * `$1` - the release name
 * `$2` - 0 for full release, 1 for incremental
 * `$3` - 0 for successful deploy, anything else for failed
+* `$4` - target server name
 
 ### Ignores
 ```bash

@@ -152,10 +152,10 @@ function loadConfigForServer {
 #
 function runHook {
     if [ ${VERBOSE} -gt 0 ]; then
-        echo "+ . .depy-$1.sh "$2" ${INCREMENTAL} "$3""
+        echo "+ . .depy-$1.sh "$2" ${INCREMENTAL} "$3" "$4""
     fi
 
-    (. .depy-$1.sh "$2" ${INCREMENTAL} "$3" | sed "s/^/[local] /"; return ${PIPESTATUS[0]})
+    (. .depy-$1.sh "$2" ${INCREMENTAL} "$3" "$4" | sed "s/^/[local] /"; return ${PIPESTATUS[0]})
 }
 
 # Run remote command without any prefixes or changes
@@ -178,8 +178,8 @@ function remoteCmd {
     local server_release_dir=$2
 
     if [ "$cmd" = "remote" ]; then
-        if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + cd ${server_release_dir}; bash -s .depy-remote.sh ${INCREMENTAL}"; fi
-        (remoteScriptRaw "cd ${server_release_dir}; bash -s" < ".depy-remote.sh" ${INCREMENTAL} | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
+        if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + cd ${server_release_dir}; bash -s .depy-remote.sh ${INCREMENTAL} ${TARGET}"; fi
+        (remoteScriptRaw "cd ${server_release_dir}; bash -s" < ".depy-remote.sh" ${INCREMENTAL} ${TARGET} | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
     else
         if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + cd ${SERVER_DIR}; $cmd"; fi
         (remoteCmdRaw "cd ${SERVER_DIR}; $cmd" | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
@@ -312,7 +312,7 @@ case "${ARG}" in
         if [ -f .depy-pre.sh ]; then
             set +e
             echo "[local] Running pre hook"
-            runHook "pre" ${release} ${failed}
+            runHook "pre" ${release} ${failed} ${TARGET}
             if [ $? -ne 0 ]; then
                 error "[local] Finished with error exit code"
                 failed=1
@@ -425,7 +425,7 @@ case "${ARG}" in
         if [ -f .depy-post.sh ]; then
             set +e
             echo "[local] Running post hook"
-            runHook "post" ${release} ${failed}
+            runHook "post" ${release} ${failed} ${TARGET}
             if [ $? -ne 0 ]; then
                 error "[local] Finished with error exit code"
                 failed=1
