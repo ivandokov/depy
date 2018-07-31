@@ -1,3 +1,4 @@
+#@IgnoreInspection BashAddShebang
 # bash completion for depy
 
 have depy &&
@@ -5,9 +6,15 @@ _depy()
 {
     COMPREPLY=()
     local cur prev servers
+    local cmd="${1##*/}"
+    local line=$COMP_LINE
     _get_comp_words_by_ref -n : cur prev
-
     _expand || return 0
+
+    if [[ $line =~ ^depy\ deploy\ [a-z]+\ .*$ ]] ; then
+        COMPREPLY=( $(compgen -W "--verbose --incremental --skip-pre --skip-remote --skip-post" -- "$cur") )
+        return 0
+    fi
 
     case $prev in
         setup|deploy|releases|rollback)
@@ -19,7 +26,9 @@ _depy()
             ;;
     esac
 
-    COMPREPLY=( $( compgen -W 'init setup deploy releases rollback pack pack-list update' -- "$cur" ) )
+    if [ $prev = $cmd ]; then
+        COMPREPLY=( $( compgen -W 'init setup deploy releases rollback pack pack-list update' -- "$cur" ) )
+    fi
     return 0
 } &&
 complete -F _depy depy
