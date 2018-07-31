@@ -6,6 +6,9 @@ start=`date +%s`
 
 ARG=$1
 TARGET=$2
+SKIP_PRE_HOOK=0
+SKIP_REMOTE_HOOK=0
+SKIP_POST_HOOK=0
 VERBOSE=0
 INCREMENTAL=0
 BETA=0
@@ -13,6 +16,9 @@ DEV=0
 
 for argument in "$@"; do
     case "${argument}" in
+        -spr|--skip-pre) SKIP_PRE_HOOK=1 ;;
+        -sr|--skip-remote) SKIP_REMOTE_HOOK=1 ;;
+        -spo|--skip-post) SKIP_POST_HOOK=1 ;;
         -v|--verbose) VERBOSE=1 ;;
         -vv|--vverbose) VERBOSE=2 ;;
         -i|--incremental) INCREMENTAL=1 ;;
@@ -309,7 +315,7 @@ case "${ARG}" in
 
         # Run pre hook
         #
-        if [ -f .depy-pre.sh ]; then
+        if [ -f .depy-pre.sh ] && [ ${SKIP_PRE_HOOK} -eq 0 ]; then
             set +e
             echo "[local] Running pre hook"
             runHook "pre" ${release} ${failed} ${TARGET}
@@ -390,7 +396,7 @@ case "${ARG}" in
 
             # Run remote hook
             #
-            if [ -f .depy-remote.sh ]; then
+            if [ -f .depy-remote.sh ] && [ ${SKIP_REMOTE_HOOK} -eq 0 ]; then
                 set +e
                 echo "[${TARGET}] Running remote hook"
                 remoteCmd "remote" ${server_release_dir}
@@ -422,7 +428,7 @@ case "${ARG}" in
 
         # Run post hook
         #
-        if [ -f .depy-post.sh ]; then
+        if [ -f .depy-post.sh ] && [ ${SKIP_POST_HOOK} -eq 0 ]; then
             set +e
             echo "[local] Running post hook"
             runHook "post" ${release} ${failed} ${TARGET}

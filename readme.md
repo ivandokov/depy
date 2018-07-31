@@ -110,7 +110,7 @@ Depy comes with bash autocompletion for easier usage.
 `depy setup [TARGET]` - create required folders structure on the specified server.
 
 ### deploy
-`depy deploy [TARGET] [-i|--incremental]`
+`depy deploy [TARGET] [OPTIONS]`
 1) runs pre hook locally. If the hook fails (exit with status other than 0) the deployment is cancelled and marked as failed
 2) transfer files to the target server
 3) runs remote hook. If the hook fails (exit with status other than 0) the deployment is cancelled and marked as failed. The failed release will be deleted
@@ -118,7 +118,12 @@ Depy comes with bash autocompletion for easier usage.
 5) clean up old releases on the target server
 6) runs post hook locally. If the hook fails* the deployment marked as failed, but the deployment is successful and release is not deleted
 
+#### Options
 `-i|--incremental` flag will change the deployment flow to incremental. It will duplicate the latest release on the server and upload only the changes using rsync. This will decrease the deployment time for larger projects.
+
+`-spr|--skip-pre` flag will skip pre hook.
+`-sr|--skip-remote` flag will skip remote hook.
+`-spo|--skip-post` flag will skip post hook.
 
 ### releases
 `depy releases [TARGET]` - list all existing releases on the target server.

@@ -15,7 +15,7 @@ ARGUMENTS
     setup [TARGET]
         create required directories structure on the remote server.
 
-    deploy [TARGET]
+    deploy [TARGET] [OPTIONS]
         1) runs pre hook locally. If the hook fails* the deployment is cancelled and marked as failed
         2) transfer files to the target server
         3) runs remote hook. If the hook fails* the deployment is cancelled and marked as failed. The failed release will be deleted
@@ -24,7 +24,11 @@ ARGUMENTS
         6) runs post hook locally. If the hook fails* the deployment marked as failed, but the deployment is successful and release is not deleted
         * exit with status other than 0
 
+    OPTIONS
         -i|--incremental flag will change the deployment process. It will duplicate the latest release on the server and upload only the changes. This will decrease the deployment time
+        -spr|--skip-pre flag will skip pre hook
+        -sr|--skip-remote flag will skip remote hook
+        -spo|--skip-post flag will skip post hook
 
     releases [TARGET]
         list all existing releases on the target server
