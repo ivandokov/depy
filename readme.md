@@ -129,7 +129,7 @@ Depy comes with bash autocompletion for easier usage.
 `depy releases [TARGET]` - list all existing releases on the target server.
 
 ### rollback
-`depy rollback [TARGET] [RELEASE]` - rollback to the specified release on the target server.
+`depy rollback [TARGET] [RELEASE]` - rollback to the specified release on the target server. If release is not specified it will rollback to the latest release before the current one.
 
 ### pack
 `depy pack` - create package with the files to be deployed. This can be used for manual deployment.
