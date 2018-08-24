@@ -26,6 +26,7 @@ ARGUMENTS
 
     OPTIONS
         -i|--incremental flag will change the deployment process. It will duplicate the latest release on the server and upload only the changes. This will decrease the deployment time
+        -p|--progress flag will show transfer progress while moving the package to the target server.
         -spr|--skip-pre flag will skip pre hook
         -sr|--skip-remote flag will skip remote hook
         -spo|--skip-post flag will skip post hook

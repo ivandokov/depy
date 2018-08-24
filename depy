@@ -9,6 +9,7 @@ TARGET=$2
 SKIP_PRE_HOOK=0
 SKIP_REMOTE_HOOK=0
 SKIP_POST_HOOK=0
+PROGRESS=0
 VERBOSE=0
 INCREMENTAL=0
 BETA=0
@@ -19,6 +20,7 @@ for argument in "$@"; do
         -spr|--skip-pre) SKIP_PRE_HOOK=1 ;;
         -sr|--skip-remote) SKIP_REMOTE_HOOK=1 ;;
         -spo|--skip-post) SKIP_POST_HOOK=1 ;;
+        -p|--progress) PROGRESS=1 ;;
         -v|--verbose) VERBOSE=1 ;;
         -vv|--vverbose) VERBOSE=2 ;;
         -i|--incremental) INCREMENTAL=1 ;;
@@ -303,7 +305,7 @@ case "${ARG}" in
         remoteHooksFailed=0
         release=$(releaseName)
 
-        rsyncProgress=$(if [ ${VERBOSE} -gt 0 ]; then echo "--progress"; fi)
+        rsyncProgress=$(if [ ${VERBOSE} -gt 0 ] || [ ${PROGRESS} -gt 0 ]; then echo "--progress"; fi)
         unzipQuiet=$(if [ ${VERBOSE} -lt 2 ]; then echo "-q"; fi)
 
         # Make sure tmp directory exists

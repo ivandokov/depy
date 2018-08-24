@@ -120,7 +120,7 @@ Depy comes with bash autocompletion for easier usage.
 
 #### Options
 `-i|--incremental` flag will change the deployment flow to incremental. It will duplicate the latest release on the server and upload only the changes using rsync. This will decrease the deployment time for larger projects.
-
+`-p|--progress` flag will show transfer progress while moving the package to the target server.
 `-spr|--skip-pre` flag will skip pre hook.
 `-sr|--skip-remote` flag will skip remote hook.
 `-spo|--skip-post` flag will skip post hook.
