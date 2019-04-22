@@ -2,7 +2,8 @@
 
 set -e
 
-start=`date +%s`
+START=`date +%s`
+SOURCE=`pwd`
 
 ARG=$1
 TARGET=$2
@@ -216,10 +217,14 @@ function rollback {
 #
 function zipCommand {
     local quiet=$(if [ ${VERBOSE} -gt 1 ]; then echo "--verbose"; else echo "--quiet"; fi)
-    local ignore=$([ -f .depyignore ] && echo "--exclude @.depyignore")
+    local ignore=$([ -f ${SOURCE}/.depyignore ] && echo "--exclude @${SOURCE}/.depyignore")
 
     [ ${VERBOSE} -gt 0 ] && set -x
-    zip -9 --recurse-paths --symlinks ${quiet} "$@" --exclude @"${DEPY_DIR}/ignore" ${ignore}
+    local path=${@:$#}
+    local args=${@:1:$((${#@}-1))}
+    cd "$path"
+    zip -9 --recurse-paths --symlinks ${quiet} ${args} . --exclude @"${DEPY_DIR}/ignore" ${ignore}
+    cd - > /dev/null
     { set +x; } 2>/dev/null
 }
 
@@ -237,8 +242,8 @@ function pack {
 }
 
 function calculateProcessTime() {
-    end=`date +%s`
-    runtime=$((end-start))
+    END=`date +%s`
+    runtime=$((END-START))
     echo "Finished for ${runtime} seconds"
 }
 
@@ -499,7 +504,7 @@ case "${ARG}" in
     pack-list)
         loadConfig
         VERBOSE=2
-        zipCommand -sf tmp.zip "${DEPLOY_DIR}"
+        zipCommand --show-files tmp.zip "${DEPLOY_DIR}"
     ;;
 
     update)
