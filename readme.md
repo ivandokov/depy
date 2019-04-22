@@ -66,7 +66,7 @@ This is an **optional** script that is executed locally in the project directory
 If the hook exit with code different than 0 (error) the deployment process will be canceled and marked as failed.
 
 These hook receives the following arguments:
-* `$1` - the release name
+* `$1` - the release name. Cloud be "pack-list" when ran for `pack-list` command
 * `$2` - 0 for full release, 1 for incremental
 * `$3` - 0 for successful deploy, anything else for failed
 * `$4` - target server name

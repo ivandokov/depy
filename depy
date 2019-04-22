@@ -119,7 +119,6 @@ function loadConfig {
     # Parse shared array
     sharedList=$(cat .depy | grep -v 'shared.*(.*)' | sed -n "/shared.*(/,/)/p" | grep -v 'shared.*(' | grep -v ')' | sed '/^$/d' | sed -e 's/^[ \t]*//')
 
-    [ ! -d "${deploy_target}" ] && error "Missing deploy target -> ${deploy_target}" && exit 1
     DEPLOY_DIR="${deploy_target}"
 }
 
@@ -153,6 +152,15 @@ function loadConfigForServer {
     SERVER_USER="${!SERVER_USER}"
     SERVER_KEY="${!SERVER_KEY}"
     SERVER_DIR="${!SERVER_DIR}"
+}
+
+# Make sure the deploy target is available
+#
+function checkDeployTargetExists {
+    if [ ! -d "${DEPLOY_DIR}" ]; then
+        error "Missing deploy target -> ${DEPLOY_DIR}"
+        exit 1
+    fi
 }
 
 # Run each hook in a subprocess
@@ -231,6 +239,8 @@ function zipCommand {
 # Pack the local files for release
 #
 function pack {
+    checkDeployTargetExists
+
     if [ -z "$1" ]; then release=$(releaseName); else release=${1}; fi
     if [ -z "$2" ]; then path=''; else path="${2%/}/"; fi
 
@@ -503,6 +513,9 @@ case "${ARG}" in
 
     pack-list)
         loadConfig
+
+        runHook "pre" pack-list
+        checkDeployTargetExists
         VERBOSE=2
         zipCommand --show-files tmp.zip "${DEPLOY_DIR}"
     ;;
