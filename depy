@@ -203,10 +203,17 @@ function remoteCmd {
     fi
 }
 
-# Generate release name
+# Get next release name
 #
 function releaseName {
-    echo $(date -u +"%Y%m%d%H%M%S")
+    local version=$(remoteCmdRaw "cat \"${SERVER_DIR}/depy/release\" 2>/dev/null")
+
+    if [ -z "$version" ]; then
+        setupRemoteConfig
+        echo 1;
+    fi
+
+    echo "$version"
 }
 
 # Create symbolic link for the current release on the server
@@ -257,6 +264,14 @@ function calculateProcessTime() {
     echo "Finished for ${runtime} seconds"
 }
 
+function setupRemoteConfig() {
+    remoteCmd "mkdir -p depy"
+    remoteCmd "echo 1 > depy/release"
+    remoteCmd "echo 'This software is deployed using Depy.' > depy/readme"
+    remoteCmd "echo 'This directory contains configuration files.' >> depy/readme"
+    remoteCmd "echo 'Read more at https://github.com/ivandokov/depy' >> depy/readme"
+}
+
 case "${ARG}" in
     init)
         [ -f .depy} ] && error "Depy is already initialized in this directory" && exit 1
@@ -293,6 +308,11 @@ case "${ARG}" in
         if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + [ -d \"${SERVER_DIR}/shared\" ] && echo 1"; fi
         if [ -z $(remoteCmdRaw "[ -d \"${SERVER_DIR}/shared\" ] && echo 1") ]; then
             remoteCmd "mkdir shared"
+        fi
+
+        if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + [ -d \"${SERVER_DIR}/depy\" ] && echo 1"; fi
+        if [ -z $(remoteCmdRaw "[ -d \"${SERVER_DIR}/depy\" ] && echo 1") ]; then
+            setupRemoteConfig
         fi
 
         if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + [ -L \"${SERVER_DIR}/current\" ] && echo 1"; fi
@@ -431,6 +451,8 @@ case "${ARG}" in
         if [ ${failed} -eq 0 ]; then
             echo "[${TARGET}] Linking release as current"
             link "${release}"
+            nextRelease=$((release + 1))
+            remoteCmd "echo $nextRelease > depy/release"
         fi
 
         # Clean up old releases or remove failed release
