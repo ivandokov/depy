@@ -13,6 +13,7 @@ SKIP_POST_HOOK=0
 PROGRESS=0
 VERBOSE=0
 INCREMENTAL=0
+FORCE=0
 BETA=0
 DEV=0
 
@@ -25,6 +26,7 @@ for argument in "$@"; do
         -v|--verbose) VERBOSE=1 ;;
         -vv|--vverbose) VERBOSE=2 ;;
         -i|--incremental) INCREMENTAL=1 ;;
+        -f|--force) FORCE=1 ;;
            --beta) BETA=1 ;;
            --dev) DEV=1 ;;
     esac
@@ -265,6 +267,16 @@ function calculateProcessTime {
     echo "Finished for ${runtime} seconds"
 }
 
+function lockDeploy {
+    echo "[${TARGET}] Deployment lock"
+    remoteCmd "touch depy/lock"
+}
+
+function unlockDeploy {
+    echo "[${TARGET}] Deployment lock removed"
+    remoteCmd "rm depy/lock"
+}
+
 function setupRemoteConfig {
     remoteScriptRaw bash <<EOL
 mkdir -p depy
@@ -363,6 +375,14 @@ EOL
             set -e
         fi
 
+
+        if [ ${FORCE} -eq 0 ] && [ -z $(remoteCmdRaw "[ ! -f \"${SERVER_DIR}/depy/lock\" ] && echo 1") ]; then
+            error "[${TARGET}] Deployment lock is in place. Another deploy process is running."
+            failed=1
+        else
+            lockDeploy
+        fi
+
         # Remote server work
         #
         if [ ${failed} -eq 0 ]; then
@@ -444,6 +464,8 @@ EOL
                 fi
                 set -e
             fi
+
+            unlockDeploy
         fi
 
         # Skip if any of the pre or remote hooks failed

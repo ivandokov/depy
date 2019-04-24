@@ -119,6 +119,7 @@ Depy comes with bash autocompletion for easier usage.
 6) runs post hook locally. If the hook fails* the deployment marked as failed, but the deployment is successful and release is not deleted
 
 #### Options
+`-f|--force` flag will force deployment process even when deployment lock is in place. This is useful if previous deployment failed to clean up after itself for connection reasons.
 `-i|--incremental` flag will change the deployment flow to incremental. It will duplicate the latest release on the server and upload only the changes using rsync. This will decrease the deployment time for larger projects.
 `-p|--progress` flag will show transfer progress while moving the package to the target server.
 `-spr|--skip-pre` flag will skip pre hook.

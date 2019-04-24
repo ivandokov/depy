@@ -25,6 +25,7 @@ ARGUMENTS
         * exit with status other than 0
 
     OPTIONS
+        -f|--force flag will force deployment process even when deployment lock is in place. This is useful if previous deployment failed to clean up after itself for connection reasons.
         -i|--incremental flag will change the deployment process. It will duplicate the latest release on the server and upload only the changes. This will decrease the deployment time
         -p|--progress flag will show transfer progress while moving the package to the target server.
         -spr|--skip-pre flag will skip pre hook
