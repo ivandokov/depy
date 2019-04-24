@@ -70,11 +70,11 @@ if ! which zip > /dev/null; then
     exit 1
 fi
 
-function getLink() {
+function getLink {
     ls -l $1 | awk '{print $11}'
 }
 
-function readLinkRecursive() {
+function readLinkRecursive {
     local src tmp
 
     src=$(getLink $1)
@@ -163,6 +163,16 @@ function checkDeployTargetExists {
     fi
 }
 
+# Make sure the connection to the server is available
+#
+function checkConnectionAccess {
+    local status=$(remoteCmdRaw echo ok 2>&1)
+    if echo $status | grep -q "Permission denied"; then
+        error "Permission denied to server ${TARGET}"
+        exit 1
+    fi
+}
+
 # Run each hook in a subprocess
 # Prefix the hook with the file name
 # Return hook exit status
@@ -178,13 +188,15 @@ function runHook {
 # Run remote command without any prefixes or changes
 #
 function remoteCmdRaw {
-    ssh ${SERVER_USER}@${SERVER_HOST} -i "${SERVER_KEY}" -p ${SERVER_PORT} -n $@
+    ssh ${SERVER_USER}@${SERVER_HOST} -i "${SERVER_KEY}" -p ${SERVER_PORT} -o BatchMode=yes -o ConnectTimeout=3 $@ < /dev/null
+    return ${PIPESTATUS[0]}
 }
 
 # Run remote command without any prefixes or changes
 #
 function remoteScriptRaw {
-    ssh ${SERVER_USER}@${SERVER_HOST} -i "${SERVER_KEY}" -p ${SERVER_PORT} $@
+    ssh ${SERVER_USER}@${SERVER_HOST} -i "${SERVER_KEY}" -p ${SERVER_PORT} -o BatchMode=yes -o ConnectTimeout=3 $@
+    return ${PIPESTATUS[0]}
 }
 
 # Run remote command and prefix the output with the target server name
@@ -194,13 +206,8 @@ function remoteCmd {
     local cmd=$1
     local server_release_dir=$2
 
-    if [ "$cmd" = "remote" ]; then
-        if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + cd ${server_release_dir}; bash -s .depy-remote.sh ${INCREMENTAL} ${TARGET}"; fi
-        (remoteScriptRaw "cd ${server_release_dir}; bash -s" < ".depy-remote.sh" ${INCREMENTAL} ${TARGET} | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
-    else
-        if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + cd ${SERVER_DIR}; $cmd"; fi
-        (remoteCmdRaw "cd ${SERVER_DIR}; $cmd" | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
-    fi
+    if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + cd ${SERVER_DIR}; $cmd"; fi
+    (remoteCmdRaw "cd ${SERVER_DIR}; $cmd" | sed "s/^/[${TARGET}] /"; return ${PIPESTATUS[0]})
 }
 
 # Get next release name
@@ -220,12 +227,6 @@ function releaseName {
 #
 function link {
     remoteCmd "rm current; ln -s releases/${1} current"
-}
-
-# Create symbolic link from the specified release to current
-#
-function rollback {
-    link "$1"
 }
 
 # Shortcut for zip command
@@ -258,18 +259,20 @@ function pack {
     fi
 }
 
-function calculateProcessTime() {
+function calculateProcessTime {
     END=`date +%s`
     runtime=$((END-START))
     echo "Finished for ${runtime} seconds"
 }
 
-function setupRemoteConfig() {
-    remoteCmd "mkdir -p depy"
-    remoteCmd "echo 1 > depy/release"
-    remoteCmd "echo 'This software is deployed using Depy.' > depy/readme"
-    remoteCmd "echo 'This directory contains configuration files.' >> depy/readme"
-    remoteCmd "echo 'Read more at https://github.com/ivandokov/depy' >> depy/readme"
+function setupRemoteConfig {
+    remoteScriptRaw bash <<EOL
+mkdir -p depy
+echo 1 > depy/release
+echo 'This software is deployed using Depy.
+This directory contains configuration files.
+Read more at https://github.com/ivandokov/depy' > depy/readme
+EOL
 }
 
 case "${ARG}" in
@@ -287,38 +290,33 @@ case "${ARG}" in
 
     setup)
         loadConfigForServer
+        checkConnectionAccess
 
-        if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + which unzip"; fi
-        if [ -z $(remoteCmdRaw "which unzip") ]; then
-            error "Server ${TARGET} does not have unzip installed"
-            exit 1
+        if [ ${VERBOSE} -gt 0 ]; then
+            cat <<EOL
+[ -d "${SERVER_DIR}/releases" ] || mkdir releases
+[ -d "${SERVER_DIR}/shared" ] || mkdir shared
+[ -L "${SERVER_DIR}/current" ] || ln -s /dev/null current
+EOL
         fi
 
-        if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + [ ! -w \"${SERVER_DIR}\" ] && echo 1"; fi
-        if [ ! -z $(remoteCmdRaw "[ ! -w \"${SERVER_DIR}\" ] && echo 1") ]; then
-            error "User ${SERVER_USER} does not have write access to directory ${SERVER_DIR}"
-            exit 1
-        fi
+        remoteScriptRaw bash <<EOL
+if ! which unzip > /dev/null; then
+    echo "Server ${TARGET} does not have unzip installed"
+    exit 1
+fi
 
-        if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + [ -d \"${SERVER_DIR}/releases\" ] && echo 1"; fi
-        if [ -z $(remoteCmdRaw "[ -d \"${SERVER_DIR}/releases\" ] && echo 1") ]; then
-            remoteCmd "mkdir releases"
-        fi
+if [ ! -w "${SERVER_DIR}" ]; then
+    echo "User ${SERVER_USER} does not have write access to directory ${SERVER_DIR}"
+    exit 1
+fi
 
-        if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + [ -d \"${SERVER_DIR}/shared\" ] && echo 1"; fi
-        if [ -z $(remoteCmdRaw "[ -d \"${SERVER_DIR}/shared\" ] && echo 1") ]; then
-            remoteCmd "mkdir shared"
-        fi
+[ -d "${SERVER_DIR}/releases" ] || mkdir releases
+[ -d "${SERVER_DIR}/shared" ] || mkdir shared
+[ -L "${SERVER_DIR}/current" ] || ln -s /dev/null current
+EOL
 
-        if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + [ -d \"${SERVER_DIR}/depy\" ] && echo 1"; fi
-        if [ -z $(remoteCmdRaw "[ -d \"${SERVER_DIR}/depy\" ] && echo 1") ]; then
-            setupRemoteConfig
-        fi
-
-        if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + [ -L \"${SERVER_DIR}/current\" ] && echo 1"; fi
-        if [ -z $(remoteCmdRaw "[ -L \"${SERVER_DIR}/current\" ] && echo 1") ]; then
-            remoteCmd "ln -s /dev/null current"
-        fi
+        setupRemoteConfig
 
         calculateProcessTime
 
@@ -327,6 +325,7 @@ case "${ARG}" in
 
     deploy)
         loadConfigForServer
+        checkConnectionAccess
 
         if [ ${VERBOSE} -gt 0 ]; then
             echo "[${TARGET}] + [ -w \"${SERVER_DIR}\" ] && [ -d \"${SERVER_DIR}/releases\" ] && [ -d \"${SERVER_DIR}/shared\" ] && [ -L \"${SERVER_DIR}/current\" ] && echo 1";
@@ -436,8 +435,9 @@ case "${ARG}" in
             if [ -f .depy-remote.sh ] && [ ${SKIP_REMOTE_HOOK} -eq 0 ]; then
                 set +e
                 echo "[${TARGET}] Running remote hook"
-                remoteCmd "remote" ${server_release_dir}
-                if [ $? -ne 0 ]; then
+                if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + cd ${server_release_dir}; bash -s .depy-remote.sh ${INCREMENTAL} ${TARGET}"; fi
+                remoteScriptRaw "cd ${server_release_dir}; bash -s" < ".depy-remote.sh" ${INCREMENTAL} ${TARGET} | sed "s/^/[${TARGET}] /"
+                if [ ${PIPESTATUS[0]} -ne 0 ]; then
                     error "[${TARGET}] Finished with error exit code"
                     failed=1
                     remoteHooksFailed=1
