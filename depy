@@ -279,11 +279,11 @@ function unlockDeploy {
 
 function setupRemoteConfig {
     remoteScriptRaw bash <<EOL
-mkdir -p depy
-echo 1 > depy/release
+mkdir -p "${SERVER_DIR}/depy"
+echo 1 > "${SERVER_DIR}/depy/release"
 echo 'This software is deployed using Depy.
 This directory contains configuration files.
-Read more at https://github.com/ivandokov/depy' > depy/readme
+Read more at https://github.com/ivandokov/depy' > "${SERVER_DIR}/depy/readme"
 EOL
 }
 
@@ -306,9 +306,9 @@ case "${ARG}" in
 
         if [ ${VERBOSE} -gt 0 ]; then
             cat <<EOL
-[ -d "${SERVER_DIR}/releases" ] || mkdir releases
-[ -d "${SERVER_DIR}/shared" ] || mkdir shared
-[ -L "${SERVER_DIR}/current" ] || ln -s /dev/null current
+[ -d "${SERVER_DIR}/releases" ] || mkdir "${SERVER_DIR}/releases"
+[ -d "${SERVER_DIR}/shared" ] || mkdir "${SERVER_DIR}/shared"
+[ -L "${SERVER_DIR}/current" ] || ln -s /dev/null "${SERVER_DIR}/current"
 EOL
         fi
 
@@ -323,9 +323,9 @@ if [ ! -w "${SERVER_DIR}" ]; then
     exit 1
 fi
 
-[ -d "${SERVER_DIR}/releases" ] || mkdir releases
-[ -d "${SERVER_DIR}/shared" ] || mkdir shared
-[ -L "${SERVER_DIR}/current" ] || ln -s /dev/null current
+[ -d "${SERVER_DIR}/releases" ] || mkdir "${SERVER_DIR}/releases"
+[ -d "${SERVER_DIR}/shared" ] || mkdir "${SERVER_DIR}/shared"
+[ -L "${SERVER_DIR}/current" ] || ln -s /dev/null "${SERVER_DIR}/current"
 EOL
 
         setupRemoteConfig
@@ -379,8 +379,6 @@ EOL
         if [ ${FORCE} -eq 0 ] && [ -z $(remoteCmdRaw "[ ! -f \"${SERVER_DIR}/depy/lock\" ] && echo 1") ]; then
             error "[${TARGET}] Deployment lock is in place. Another deploy process is running."
             failed=1
-        else
-            lockDeploy
         fi
 
         # Remote server work
@@ -405,6 +403,8 @@ EOL
                 [ ${VERBOSE} -gt 0 ] && set -x
                 rsync --archive ${rsyncProgress} .depytmp/${release}.zip -e "ssh -p ${SERVER_PORT} -i ${SERVER_KEY}" ${server_dns}:${server_releases_dir}
                 { set +x; } 2>/dev/null
+
+                lockDeploy
 
                 echo "[${TARGET}] Unpacking files"
                 remoteCmd "unzip ${unzipQuiet} \"releases/${release}.zip\" -d \"releases/${release}\"; rm \"releases/${release}.zip\""
@@ -431,6 +431,8 @@ EOL
                 rsync --archive ${rsyncProgress} .depytmp/${release}-i.zip -e "ssh -p ${SERVER_PORT} -i ${SERVER_KEY}" ${server_dns}:${server_releases_dir}
                 rm .depytmp/${release}-i.zip
                 { set +x; } 2>/dev/null
+
+                lockDeploy
 
                 echo "[${TARGET}] Unpacking files"
                 remoteCmd "unzip -o ${unzipQuiet} \"releases/${release}-i.zip\" -d \"releases/${release}\"; rm \"releases/${release}-i.zip\""
