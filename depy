@@ -251,13 +251,13 @@ function zipCommand {
 function pack {
     checkDeployTargetExists
 
-    if [ -z "$1" ]; then release=$(releaseName); else release=${1}; fi
+    if [ -z "$1" ]; then release=$(date -u +"%Y%m%d%H%M%S"); else release=${1}; fi
     if [ -z "$2" ]; then path=''; else path="${2%/}/"; fi
 
     if [ -z "$3" ]; then
-        zipCommand "${path}${release}.zip" "${DEPLOY_DIR}"
+        zipCommand "${SOURCE}/${path}${release}.zip" "${DEPLOY_DIR}"
     else
-        zipCommand "${path}${3}.zip" "${DEPLOY_DIR}" -DF --out "${path}${release}-i.zip"
+        zipCommand "${SOURCE}/${path}${3}.zip" "${DEPLOY_DIR}" -DF --out "${path}${release}-i.zip"
     fi
 }
 
