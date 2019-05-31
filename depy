@@ -568,6 +568,7 @@ EOL
 
     update)
         cd ${DEPY_DIR}
+        git pull --quiet
         git fetch --tags
 
         if [ ${DEV} -eq 1 ]; then
