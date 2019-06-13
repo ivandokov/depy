@@ -9,6 +9,7 @@ ARG=$1
 TARGET=$2
 SKIP_PRE_HOOK=0
 SKIP_REMOTE_HOOK=0
+SKIP_REMOTE_POST_LINK_HOOK=0
 SKIP_POST_HOOK=0
 PROGRESS=0
 VERBOSE=0
@@ -21,6 +22,7 @@ for argument in "$@"; do
     case "${argument}" in
         -spr|--skip-pre) SKIP_PRE_HOOK=1 ;;
         -sr|--skip-remote) SKIP_REMOTE_HOOK=1 ;;
+        -srpl|--skip-remote-post-link) SKIP_REMOTE_POST_LINK_HOOK=1 ;;
         -spo|--skip-post) SKIP_POST_HOOK=1 ;;
         -p|--progress) PROGRESS=1 ;;
         -v|--verbose) VERBOSE=1 ;;
@@ -477,6 +479,20 @@ EOL
             link "${release}"
             nextRelease=$((release + 1))
             remoteCmd "echo $nextRelease > depy/release"
+        fi
+
+        # Run remote post link hook
+        #
+        if [ -f .depy-remote-post-link.sh ] && [ ${SKIP_REMOTE_POST_LINK_HOOK} -eq 0 ]; then
+            set +e
+            echo "[${TARGET}] Running remote post link hook"
+            if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + cd ${server_release_dir}; bash -s .depy-remote-post-link.sh ${INCREMENTAL} ${TARGET}"; fi
+            remoteScriptRaw "cd ${server_release_dir}; bash -s" < ".depy-remote-post-link.sh" ${INCREMENTAL} ${TARGET} | sed "s/^/[${TARGET}] /"
+            if [ ${PIPESTATUS[0]} -ne 0 ]; then
+                error "[${TARGET}] Finished with error exit code"
+                failed=1
+            fi
+            set -e
         fi
 
         # Clean up old releases or remove failed release

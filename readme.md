@@ -63,7 +63,7 @@ The hooks are bash scripts which are executed in a specific moment of the deploy
 .depy-pre.sh
 ```
 This is an **optional** script that is executed locally in the project directory before the actual deployment process. It is a great place to make sure that you are not deploying broken code to the server. You can use it to execute tests, builds, etc.
-If the hook exit with code different than 0 (error) the deployment process will be canceled and marked as failed.
+If the hook exit with code different than 0 (error) the deployment process will be cancelled and marked as failed.
 
 These hook receives the following arguments:
 * `$1` - the release name. Cloud be "pack-list" when ran for `pack-list` command
@@ -75,7 +75,17 @@ These hook receives the following arguments:
 ```bash
 .depy-remote.sh
 ``` 
-This is an **optional** script that is executed on the server in the new release folder before the linking of the release as current. This hook is used to install dependencies, make builds and for clean up work on the server. If the hook exit with code different than 0 (error) the deployment process will be canceled and marked as failed.
+This is an **optional** script that is executed on the server in the new release folder **before** the linking of the release as current. This hook is used to install dependencies, make builds and for clean up work on the server. If the hook exit with code different than 0 (error) the deployment process will be cancelled and marked as failed.
+
+The hook receives the following arguments:
+* `$1` - 0 for full release, 1 for incremental
+* `$2` - target server name
+
+#### Remote post link hook
+```bash
+.depy-remote-post-link.sh
+``` 
+This is an **optional** script that is executed on the server in the new release folder **after** the linking of the release as current. This hook is used to execute code on the server after the current release is updated. For example restarting workers which depend on the current release path to point to the new code. If the hook exit with code different than 0 (error) the deployment process will not be cancelled but marked as failed.
 
 The hook receives the following arguments:
 * `$1` - 0 for full release, 1 for incremental
@@ -85,7 +95,7 @@ The hook receives the following arguments:
 ```bash
 .depy-post.sh
 ```
-This is an **optional** script that is executed locally in the project directory after the actual deployment process. This hook is used for clean up work, announcing deploy status (for example in a Slack channel), etc. If the hook exit with code different than 0 (error) the deployment process will be marked as failed, but cannot be canceled because the remote stuff are already done.
+This is an **optional** script that is executed locally in the project directory after the actual deployment process. This hook is used for clean up work, announcing deploy status (for example in a Slack channel), etc. If the hook exit with code different than 0 (error) the deployment process will be marked as failed, but cannot be cancelled because the remote stuff are already done.
 
 The hook receives the following arguments:
 * `$1` - the release name
@@ -124,6 +134,7 @@ Depy comes with bash autocompletion for easier usage.
 `-p|--progress` flag will show transfer progress while moving the package to the target server.
 `-spr|--skip-pre` flag will skip pre hook.
 `-sr|--skip-remote` flag will skip remote hook.
+`-srpl|--skip-remote-post-link` flag will skip remote hook.
 `-spo|--skip-post` flag will skip post hook.
 
 ### releases

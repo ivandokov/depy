@@ -30,6 +30,7 @@ ARGUMENTS
         -p|--progress flag will show transfer progress while moving the package to the target server.
         -spr|--skip-pre flag will skip pre hook
         -sr|--skip-remote flag will skip remote hook
+        -srpl|--skip-remote-post-link flag will skip remote post link hook
         -spo|--skip-post flag will skip post hook
 
     releases [TARGET]
