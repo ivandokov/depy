@@ -498,10 +498,10 @@ EOL
         #
         if [ ${remoteHooksFailed} -eq 0 ]; then
             echo "[${TARGET}] Clean up old releases"
-            remoteCmd "cd releases; ls | sort -r | sed '1,${keep_releases}d' | xargs rm -rf --"
+            remoteCmd "cd releases; ls | sort -nr | sed '1,${keep_releases}d' | xargs rm -rf --"
         else
             echo "[${TARGET}] Remove failed release"
-            remoteCmd "cd releases; ls | sort | tail -n 1 | xargs rm -rf --"
+            remoteCmd "cd releases; ls | sort -n | tail -n 1 | xargs rm -rf --"
         fi
 
         # Run post hook
@@ -522,7 +522,7 @@ EOL
         echo "[local] Cleaning up local release packages"
         [ ${VERBOSE} -gt 1 ] && set -x
         cd .depytmp
-        ls | sort -r | tail -n +2 | xargs rm -rf --
+        ls | sort -nr | tail -n +2 | xargs rm -rf --
         { set +x; } 2>/dev/null
 
         calculateProcessTime
@@ -551,7 +551,7 @@ EOL
         release=$3
 
         if [ -z "${release}" ]; then
-            release=$(remoteCmdRaw "cd releases; ls | sort | tail -n 2 | head -n 1")
+            release=$(remoteCmdRaw "cd releases; ls | sort -n | tail -n 2 | head -n 1")
             if [ -z "${release}" ]; then
                 error "[${TARGET}] No previous release found"
             fi
