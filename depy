@@ -372,7 +372,6 @@ EOL
             if [ $? -ne 0 ]; then
                 error "[local] Finished with error exit code"
                 failed=1
-                break
             fi
             set -e
         fi
@@ -483,7 +482,7 @@ EOL
 
         # Run remote post link hook
         #
-        if [ -f .depy-remote-post-link.sh ] && [ ${SKIP_REMOTE_POST_LINK_HOOK} -eq 0 ]; then
+        if [ -f .depy-remote-post-link.sh ] && [ ${failed} -eq 0 ] && [ ${SKIP_REMOTE_POST_LINK_HOOK} -eq 0 ]; then
             set +e
             echo "[${TARGET}] Running remote post link hook"
             if [ ${VERBOSE} -gt 0 ]; then echo "[${TARGET}] + cd ${server_release_dir}; bash -s .depy-remote-post-link.sh ${INCREMENTAL} ${TARGET}"; fi
