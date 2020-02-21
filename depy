@@ -271,12 +271,25 @@ function calculateProcessTime {
 
 function lockDeploy {
     echo "[${TARGET}] Deployment lock"
-    remoteCmd "cat depy/release > depy/lock"
+    remoteCmd "cat depy/release > depy/lock; cat depy/release > depy/releasing"
 }
 
 function unlockDeploy {
     echo "[${TARGET}] Deployment lock removed"
-    remoteCmd "rm depy/lock"
+    remoteCmd "rm depy/lock; rm depy/releasing"
+}
+
+function cleanupPreviousFailedRelease {
+    echo "[${TARGET}] Cleanup previously failed release if there is one"
+    remoteScriptRaw bash <<EOL
+if [ -f "${SERVER_DIR}/depy/releasing" ]; then
+    FAILED=\$(cat "${SERVER_DIR}/depy/releasing")
+    if [ ! -z "\${FAILED}" ] && [ -d "${SERVER_DIR}/releases/\${FAILED}" ]; then
+        echo "[${TARGET}] Found failed release \"\${FAILED}\", cleaning up"
+        rm -rf "${SERVER_DIR}/releases/\${FAILED}"
+    fi
+fi
+EOL
 }
 
 function setupRemoteConfig {
@@ -405,6 +418,7 @@ EOL
                 rsync --archive ${rsyncProgress} .depytmp/${release}.zip -e "ssh -p ${SERVER_PORT} -i ${SERVER_KEY}" ${server_dns}:${server_releases_dir}
                 { set +x; } 2>/dev/null
 
+                cleanupPreviousFailedRelease
                 lockDeploy
 
                 echo "[${TARGET}] Unpacking files"
@@ -433,6 +447,7 @@ EOL
                 rm .depytmp/${release}-i.zip
                 { set +x; } 2>/dev/null
 
+                cleanupPreviousFailedRelease
                 lockDeploy
 
                 echo "[${TARGET}] Unpacking files"
